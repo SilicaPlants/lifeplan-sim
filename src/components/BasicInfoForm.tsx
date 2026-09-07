@@ -250,6 +250,23 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             max={15}
             desc="全世界株のインデックス投資なら 3〜5 が目安"
           />
+          <NumberField
+            label="iDeCo・企業型DCの掛金"
+            unit="万円/月"
+            value={value.idecoMonthly}
+            onChange={(v) => set('idecoMonthly', v)}
+            step={0.1}
+            max={10}
+            desc="自分で出す掛金。全額が所得控除になり、60歳まで引き出せません（会社員の上限は月2.0〜2.3万円）"
+          />
+          <NumberField
+            label="iDeCo・企業型DCの残高"
+            unit="万円"
+            value={value.idecoBalance}
+            onChange={(v) => set('idecoBalance', v)}
+            step={10}
+            desc="いまの積立残高。60歳で投資資産に合流します"
+          />
         </div>
       </section>
 
@@ -263,6 +280,15 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             onChange={(v) => set('raiseRate', v)}
             step={0.5}
             max={10}
+          />
+          <NumberField
+            label="物価上昇率"
+            unit="%/年"
+            value={value.inflationRate}
+            onChange={(v) => set('inflationRate', v)}
+            step={0.5}
+            max={10}
+            desc="生活費・教育費・家賃・大型出費に反映します。日本銀行の目標は2%"
           />
           <NumberField
             label="退職年齢"

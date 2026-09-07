@@ -420,6 +420,56 @@ export function buildAdvice(
     });
   }
 
+  // 10. 税制優遇と物価
+  const creditTotal = rows.reduce((s2, r) => s2 + r.loanTaxCredit, 0);
+  if (creditTotal > 0) {
+    const creditYears = rows.filter((r) => r.loanTaxCredit > 0).length;
+    list.push({
+      score: 44,
+      level: 'good',
+      title: `住宅ローン控除で${creditYears}年間に${yen(creditTotal)}戻ります`,
+      body: `年末残高（上限${yen(
+        answers.housing.creditLimit,
+      )}）に${answers.housing.creditRate}%を掛けた額が、所得税と住民税から戻る計算です。控除しきれない年があると満額は使えないため、繰り上げ返済は控除期間が終わってからのほうが有利になることがあります。`,
+    });
+  }
+
+  const idecoMonthly = info.idecoMonthly ?? 0;
+  if (idecoMonthly > 0) {
+    const idecoYears = rows.filter((r) => r.idecoContribution > 0).length;
+    const totalContribution = rows.reduce((s2, r) => s2 + r.idecoContribution, 0);
+    list.push({
+      score: 40,
+      level: 'good',
+      title: `iDeCoの掛金${yen(idecoMonthly)}/月で所得控除を受けられます`,
+      body: `${idecoYears}年間で${yen(
+        totalContribution,
+      )}を拠出する計画です。掛金は全額が所得控除になるため、所得税・住民税が毎年軽くなります（年収により掛金の15〜30%程度）。60歳まで引き出せない点と、受け取り時に退職所得控除・公的年金等控除の範囲を超えると課税される点に注意してください。`,
+    });
+  } else {
+    list.push({
+      score: 34,
+      level: 'info',
+      title: 'iDeCo・企業型DCの掛金が0になっています',
+      body: `掛金は全額が所得控除になるため、同じ額を通常の投資に回すより有利です。会社員の上限は月2.0〜2.3万円（企業年金の有無による）で、月2.3万円なら年収500万円の人で毎年5万円前後の節税になります。60歳まで引き出せない資金であることを踏まえて検討してください。`,
+    });
+  }
+
+  const inflation = info.inflationRate ?? 0;
+  if (inflation > 0) {
+    const lastPrice = final.priceLevel;
+    list.push({
+      score: 36,
+      level: 'info',
+      title: `物価上昇${inflation}%を見込むと、最終年の物価は今の${lastPrice.toFixed(2)}倍です`,
+      body: `いまの生活費${yen(
+        info.livingCost * 12,
+      )}（年）が、最終年には${yen(
+        info.livingCost * 12 * lastPrice,
+      )}相当になる前提で計算しています。年金や退職金は据え置きで見ているため、実質的な受取額はその分目減りします。物価上昇に負けない運用ができるかが、老後資金の分かれ目です。`,
+    });
+  }
+
   // 深刻なものを先に、同じ深刻度なら影響の大きい順に並べる
   const weight: Record<Advice['level'], number> = {
     critical: 3000,

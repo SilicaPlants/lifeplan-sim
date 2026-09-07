@@ -1052,7 +1052,46 @@ export function QuestionCard({
                   onChange={(v) => patch('housing', { fundedBy: v })}
                   desc="投資を選ぶと、購入年にその分だけ投資資産を売却します"
                 />
+                <ToggleField
+                  label="住宅ローン控除"
+                  value={answers.housing.taxCredit}
+                  options={[
+                    { value: true, label: '使う' },
+                    { value: false, label: '使わない' },
+                  ]}
+                  onChange={(v) => patch('housing', { taxCredit: v })}
+                  desc="年末残高に控除率を掛けた額が、所得税・住民税から戻ります"
+                />
               </div>
+              {answers.housing.taxCredit && (
+                <div className="grid" style={{ marginTop: 14 }}>
+                  <NumberField
+                    label="控除期間"
+                    unit="年"
+                    value={answers.housing.creditYears}
+                    onChange={(v) => patch('housing', { creditYears: v })}
+                    min={0}
+                    max={20}
+                    desc="新築は13年、中古は10年が目安"
+                  />
+                  <NumberField
+                    label="控除率"
+                    unit="%"
+                    value={answers.housing.creditRate}
+                    onChange={(v) => patch('housing', { creditRate: v })}
+                    step={0.1}
+                    max={5}
+                  />
+                  <NumberField
+                    label="控除対象の残高上限"
+                    unit="万円"
+                    value={answers.housing.creditLimit}
+                    onChange={(v) => patch('housing', { creditLimit: v })}
+                    step={500}
+                    desc="住宅の省エネ性能により2,000〜5,000万円。長期優良住宅なら4,500万円"
+                  />
+                </div>
+              )}
               <p className="field-desc" style={{ marginTop: 14 }}>
                 借入額{' '}
                 <strong>

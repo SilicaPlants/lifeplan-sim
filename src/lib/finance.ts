@@ -38,19 +38,72 @@ function incomeTax(taxable: number): number {
   return tax * 1.021;
 }
 
-/** 額面年収から手取り年収を概算する（給与所得者・扶養控除は考慮しない簡易計算） */
-export function takeHomeFromSalary(gross: number): number {
-  if (gross <= 0) return 0;
-  const si = socialInsurance(gross);
+export interface SalaryTaxDetail {
+  /** 社会保険料 */
+  insurance: number;
+  /** 所得税（復興特別所得税込み） */
+  incomeTax: number;
+  /** 住民税 */
+  residentTax: number;
+  /** 住民税の課税所得（住宅ローン控除の上限判定に使う） */
+  residentTaxable: number;
+  /** 手取り */
+  net: number;
+}
+
+/**
+ * 額面年収から税・社会保険料の内訳と手取りを概算する
+ * （給与所得者。扶養控除・配偶者控除・生命保険料控除などは考慮しない簡易計算）。
+ * @param deductions 小規模企業共済等掛金控除など、課税所得から差し引く追加の控除
+ */
+export function salaryTaxDetail(gross: number, deductions = 0): SalaryTaxDetail {
+  if (gross <= 0) {
+    return { insurance: 0, incomeTax: 0, residentTax: 0, residentTaxable: 0, net: 0 };
+  }
+  const insurance = socialInsurance(gross);
   const afterSalaryDeduction = gross - salaryDeduction(gross);
   // 基礎控除は令和7年度税制改正後の恒久分 58 万円（所得により上乗せがあるが、
   // 税を多めに見積もる側に倒して恒久分だけを使う）。住民税は 43 万円のまま。
-  const taxableIncome = Math.max(0, afterSalaryDeduction - si - 58);
-  const taxableResident = Math.max(0, afterSalaryDeduction - si - 43);
+  const taxableIncome = Math.max(0, afterSalaryDeduction - insurance - deductions - 58);
+  const residentTaxable = Math.max(0, afterSalaryDeduction - insurance - deductions - 43);
+  const tax = incomeTax(taxableIncome);
   // 均等割は市町村3,500円＋道府県1,500円＋森林環境税1,000円
-  const resident = taxableResident * 0.1 + 0.6;
-  return Math.max(0, gross - si - incomeTax(taxableIncome) - resident);
+  const residentTax = residentTaxable * 0.1 + 0.6;
+  return {
+    insurance,
+    incomeTax: tax,
+    residentTax,
+    residentTaxable,
+    net: Math.max(0, gross - insurance - tax - residentTax),
+  };
 }
+
+/** 額面年収から手取り年収を概算する */
+export function takeHomeFromSalary(gross: number, deductions = 0): number {
+  return salaryTaxDetail(gross, deductions).net;
+}
+
+/** 元利均等返済で、n 年経過した時点のローン残高 */
+export function loanBalanceAfter(
+  principal: number,
+  years: number,
+  ratePercent: number,
+  elapsedYears: number,
+): number {
+  if (principal <= 0 || years <= 0 || elapsedYears >= years) return 0;
+  if (elapsedYears <= 0) return principal;
+  const r = ratePercent / 100 / 12;
+  const total = years * 12;
+  const passed = elapsedYears * 12;
+  if (r === 0) return principal * (1 - passed / total);
+  return (
+    (principal * (Math.pow(1 + r, total) - Math.pow(1 + r, passed))) /
+    (Math.pow(1 + r, total) - 1)
+  );
+}
+
+/** 住民税から控除できる住宅ローン控除の上限（課税所得の5%、かつ97,500円） */
+export const LOAN_CREDIT_RESIDENT_CAP = 9.75;
 
 /** 年金の手取り（公的年金等控除・社会保険料を考慮した概算：額面の約 90%） */
 export function takeHomeFromPension(gross: number): number {

@@ -97,7 +97,11 @@ export const defaultBasicInfo: BasicInfo = {
   cashRate: 0.2,
   investmentRate: 4,
   monthlyInvestment: 5,
+  idecoMonthly: 0,
+  idecoBalance: 0,
   raiseRate: 1.5,
+  // 日本銀行の物価安定目標は2%。過去の実績が低いことも踏まえ控えめに置く
+  inflationRate: 1.5,
   retireAge: 65,
   retirementPay: 1200,
   // 厚生労働省のモデル年金（夫婦2人の標準的な年金額）は月23万円前後
@@ -133,6 +137,11 @@ export const defaultAnswers: PlanAnswers = {
     // 変動金利は0.7〜1.0%、フラット35は2%前後。将来の金利上昇も見込んで中間をとる
     loanRate: 1.5,
     fundedBy: 'cash',
+    taxCredit: true,
+    // 新築は13年、中古は10年。控除率0.7%、借入限度額は住宅の省エネ性能で変わる
+    creditYears: 13,
+    creditRate: 0.7,
+    creditLimit: 3000,
   },
   moves: [],
 };

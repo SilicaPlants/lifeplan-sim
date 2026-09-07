@@ -1,8 +1,11 @@
 import {
+  LOAN_CREDIT_RESIDENT_CAP,
   annualLoanPayment,
   careCostFor,
   childAllowance,
   educationCost,
+  loanBalanceAfter,
+  salaryTaxDetail,
   supportEndAgeFor,
   takeHomeFromPension,
   takeHomeFromSalary,
@@ -11,6 +14,13 @@ import { defaultAnswers, defaultCareCosts, defaultEducationCosts } from './defau
 import type { BasicInfo, PlanAnswers, SimulationResult, YearRow } from './types';
 
 const PENSION_START_AGE = 65;
+/** iDeCo を受け取れるようになる年齢。この年に投資資産へ合流させる */
+const IDECO_RELEASE_AGE = 60;
+/**
+ * 年金のマクロ経済スライドによる調整率（％/年）。
+ * 年金額は物価上昇率からこの分を差し引いた率で増える（実質は目減りする）。
+ */
+const MACRO_SLIDE_RATE = 0.9;
 const END_AGE = 95;
 /** 持ち家の維持費（固定資産税・修繕積立・保険）は物件価格に対する年率で概算 */
 const HOME_UPKEEP_RATE = 0.01;
@@ -62,6 +72,9 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
   const years = Math.max(1, END_AGE - info.age);
   const raise = info.raiseRate / 100;
   const cashRate = info.cashRate / 100;
+  const inflation = (info.inflationRate ?? 0) / 100;
+  // 年金はマクロ経済スライドの分だけ物価上昇に追いつかない
+  const pensionGrowth = Math.max(0, (info.inflationRate ?? 0) - MACRO_SLIDE_RATE) / 100;
   const investRate = info.investmentRate / 100;
 
   // 額面年収（収入イベントを反映）。給付金は非課税・昇給なしで扱う
@@ -92,6 +105,7 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
   const rows: YearRow[] = [];
   let cash = info.cash;
   let investments = info.investments;
+  let ideco = info.idecoBalance ?? 0;
 
   for (let t = 0; t <= years; t += 1) {
     const age = info.age + t;
@@ -103,11 +117,21 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
     let benefitIncome = 0;
     let selfGross = 0;
     let spouseGross = 0;
+    let selfTax = salaryTaxDetail(0);
     if (age < info.retireAge) {
       const self = incomeAt('self', t);
       selfGross = self.amount;
-      if (self.taxFree) benefitIncome += self.amount;
-      else workIncome += takeHomeFromSalary(self.amount);
+      if (self.taxFree) {
+        benefitIncome += self.amount;
+      } else {
+        // iDeCo の掛金は全額が所得控除（小規模企業共済等掛金控除）になる
+        const idecoDeduction =
+          age < IDECO_RELEASE_AGE && age < retirement.contributionEndAge
+            ? (info.idecoMonthly ?? 0) * 12
+            : 0;
+        selfTax = salaryTaxDetail(self.amount, idecoDeduction);
+        workIncome += selfTax.net;
+      }
     }
     if (info.hasSpouse && spouseAge < info.retireAge) {
       const spouse = incomeAt('spouse', t);
@@ -117,11 +141,14 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
     }
 
     const pensionIncome =
-      age >= PENSION_START_AGE ? takeHomeFromPension(info.pensionMonthly * 12) : 0;
+      age >= PENSION_START_AGE
+        ? takeHomeFromPension(info.pensionMonthly * 12 * Math.pow(1 + pensionGrowth, t))
+        : 0;
 
     let lumpIncome = 0;
     if (age === info.retireAge && info.retirementPay > 0) {
-      lumpIncome += info.retirementPay;
+      // 退職金は賃金水準に連動して増える前提
+      lumpIncome += info.retirementPay * Math.pow(1 + raise, t);
     }
 
     // ---- 子ども ----
@@ -142,7 +169,9 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       (sum, a) => sum + careCostFor(a, careCosts, supportEndAge),
       0,
     );
-    const living = Math.max(0, baseLiving + childCost);
+    // 物価上昇は支出側に反映する（収入は昇給率で別に扱う）
+    const priceLevel = Math.pow(1 + inflation, t);
+    const living = Math.max(0, baseLiving + childCost) * priceLevel;
 
     // 住居費：購入後は持ち家、それ以前は直近の引越し先の家賃
     let housingCost: number;
@@ -152,7 +181,8 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
     if (owned) {
       const sincePurchase = t - answers.housing.yearsLater;
       const paying = sincePurchase < answers.housing.loanYears;
-      housingCost = (paying ? loanPayment : 0) + answers.housing.price * HOME_UPKEEP_RATE;
+      housingCost =
+        (paying ? loanPayment : 0) + answers.housing.price * HOME_UPKEEP_RATE * priceLevel;
       if (sincePurchase === 0) {
         const upfront = answers.housing.downPayment + answers.housing.price * PURCHASE_FEE_RATE;
         lumpExpense += upfront;
@@ -166,21 +196,21 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       const current = applied[applied.length - 1];
       if (current) {
         // 引越したあとは賃貸
-        housingCost = current.monthlyRent * 12;
+        housingCost = current.monthlyRent * 12 * priceLevel;
       } else if (info.homeType === 'owned') {
         // すでに持ち家：残りの返済期間だけ返済額がかかり、維持費はその後も続く
         const paying = t < info.loanRemainingYears;
-        housingCost = (paying ? info.rent : 0) * 12 + info.homeUpkeepMonthly * 12;
+        housingCost = (paying ? info.rent : 0) * 12 + info.homeUpkeepMonthly * 12 * priceLevel;
         if (info.loanRemainingYears > 0 && t === info.loanRemainingYears) {
           events.push('ローン完済');
         }
       } else {
-        housingCost = info.rent * 12;
+        housingCost = info.rent * 12 * priceLevel;
       }
       moves
         .filter((m) => m.yearsLater === t)
         .forEach((m) => {
-          lumpExpense += m.monthlyRent * m.initialCostMonths;
+          lumpExpense += m.monthlyRent * m.initialCostMonths * priceLevel;
           events.push(m.label || '引越し');
         });
     }
@@ -198,8 +228,8 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       const hit =
         e.repeatYears > 0 ? (t - e.yearsLater) % e.repeatYears === 0 : t === e.yearsLater;
       if (hit) {
-        bigExpense += e.amount;
-        if (e.fundedBy === 'investment') investmentFunded += e.amount;
+        bigExpense += e.amount * priceLevel;
+        if (e.fundedBy === 'investment') investmentFunded += e.amount * priceLevel;
         // 繰り返す出費は初回だけラベルを出す（毎回出すとグラフが埋まるため）
         if (e.repeatYears > 0) {
           if (t === e.yearsLater) events.push(`${e.label}（${e.repeatYears}年ごと）`);
@@ -209,10 +239,11 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       }
     });
 
-    const education = childAges.reduce(
-      (sum, a) => sum + educationCost(a, path, finalStage, educationCosts, graduateYears),
-      0,
-    );
+    const education =
+      childAges.reduce(
+        (sum, a) => sum + educationCost(a, path, finalStage, educationCosts, graduateYears),
+        0,
+      ) * priceLevel;
 
     // ---- イベントラベル ----
     incomeEvents.filter((e) => e.yearsLater === t).forEach((e) => events.push(e.label));
@@ -225,8 +256,30 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       if (a === 18) events.push('大学入学');
     });
 
+    // 住宅ローン控除：年末残高（上限つき）に控除率を掛け、納めた税額の範囲で戻る
+    let loanTaxCredit = 0;
+    if (owned && answers.housing.taxCredit) {
+      const sincePurchase = t - answers.housing.yearsLater;
+      if (sincePurchase < answers.housing.creditYears) {
+        const balance = loanBalanceAfter(
+          loanPrincipal,
+          answers.housing.loanYears,
+          answers.housing.loanRate,
+          sincePurchase,
+        );
+        const raw =
+          (Math.min(balance, answers.housing.creditLimit) * answers.housing.creditRate) / 100;
+        // 所得税から引ききれない分は住民税から（課税所得の5%、上限9.75万円）
+        const cap =
+          selfTax.incomeTax +
+          Math.min(selfTax.residentTaxable * 0.05, LOAN_CREDIT_RESIDENT_CAP);
+        loanTaxCredit = Math.max(0, Math.min(raw, cap));
+      }
+    }
+
     // ---- 集計 ----
-    const income = workIncome + benefitIncome + pensionIncome + allowance + lumpIncome;
+    const income =
+      workIncome + benefitIncome + pensionIncome + allowance + lumpIncome + loanTaxCredit;
     const expense = living + housingCost + education + lumpExpense + bigExpense;
     const balance = income - expense;
 
@@ -237,7 +290,21 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
     const yearReturn = drawing ? retirement.postReturnRate / 100 : investRate;
     const cashInterest = cash > 0 ? cash * cashRate : 0;
     const investmentGain = investments > 0 ? investments * yearReturn : 0;
-    const cashBeforeContribution = cash + cashInterest + balance;
+    // iDeCo は 60 歳まで引き出せないため、それまでは別に運用して積み上げる
+    const idecoGain = ideco > 0 ? ideco * yearReturn : 0;
+    ideco += idecoGain;
+    const idecoContribution =
+      age < IDECO_RELEASE_AGE && age < retirement.contributionEndAge
+        ? (info.idecoMonthly ?? 0) * 12
+        : 0;
+    ideco += idecoContribution;
+    // 60 歳になったら受け取れるようになるので、投資資産へ合流させる
+    if (age >= IDECO_RELEASE_AGE && ideco > 0) {
+      investments += ideco;
+      if (age === IDECO_RELEASE_AGE) events.push('iDeCo 受取開始');
+      ideco = 0;
+    }
+    const cashBeforeContribution = cash + cashInterest + balance - idecoContribution;
     // 積立は設定した年齢で止める
     const monthlyInvestment = monthlyInvestmentAt(t);
     const contribution =
@@ -275,7 +342,7 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
 
     cash = nextCash;
     investments = nextInvestments;
-    const totalAssets = cash + investments;
+    const totalAssets = cash + investments + ideco;
 
     rows.push({
       t,
@@ -289,6 +356,8 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       pensionIncome,
       allowance,
       lumpIncome,
+      loanTaxCredit,
+      priceLevel,
       expense,
       living,
       housing: housingCost,
@@ -304,6 +373,8 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       investmentGain,
       cash,
       investments,
+      idecoContribution,
+      ideco,
       totalAssets,
       childCount: dependents.length,
       events,

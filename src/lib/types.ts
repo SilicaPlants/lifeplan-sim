@@ -49,8 +49,14 @@ export interface BasicInfo {
   investmentRate: number;
   /** 毎月の積立投資額（現金から投資へ振り替える額） */
   monthlyInvestment: number;
+  /** iDeCo・企業型DCのマッチング拠出など、自分で出す掛金（月額）。全額が所得控除になる */
+  idecoMonthly: number;
+  /** iDeCo・企業型DC の現在の残高 */
+  idecoBalance: number;
   /** 昇給率（％/年） */
   raiseRate: number;
+  /** 物価上昇率（％/年）。生活費・教育費・家賃・大型出費に適用する */
+  inflationRate: number;
   retireAge: number;
   /** 退職金の見込み額 */
   retirementPay: number;
@@ -145,6 +151,14 @@ export interface HousingAnswer {
   loanRate: number;
   /** 頭金・諸費用をどこから払うか */
   fundedBy: FundingSource;
+  /** 住宅ローン控除を適用するか */
+  taxCredit: boolean;
+  /** 控除期間（年）。新築は13年、中古は10年が目安 */
+  creditYears: number;
+  /** 控除率（％）。年末残高に対して掛ける */
+  creditRate: number;
+  /** 控除の対象になる年末残高の上限（借入限度額） */
+  creditLimit: number;
 }
 
 /** 大きな支出をどこから払うか */
@@ -249,6 +263,10 @@ export interface YearRow {
   allowance: number;
   /** 内訳：退職金など一時収入 */
   lumpIncome: number;
+  /** 内訳：住宅ローン控除による減税額 */
+  loanTaxCredit: number;
+  /** その年の物価水準（初年度＝1.0） */
+  priceLevel: number;
   /** 支出合計（年額） */
   expense: number;
   living: number;
@@ -276,6 +294,10 @@ export interface YearRow {
   cash: number;
   /** 年末時点の投資資産 */
   investments: number;
+  /** その年の iDeCo 掛金 */
+  idecoContribution: number;
+  /** 年末時点の iDeCo 残高（60歳で投資資産へ合流する） */
+  ideco: number;
   /** 年末時点の総資産（現金＋投資） */
   totalAssets: number;
   /** 同居している子どもの人数 */

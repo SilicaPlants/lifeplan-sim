@@ -505,6 +505,7 @@ export function Result({
                   <th>年</th>
                   <th>年齢</th>
                   <th>収入</th>
+                  <th>ローン控除</th>
                   <th>生活費</th>
                   <th>住居費</th>
                   <th>教育費</th>
@@ -514,6 +515,7 @@ export function Result({
                   <th>取崩</th>
                   <th>現金</th>
                   <th>投資</th>
+                  <th>iDeCo</th>
                   <th>総資産</th>
                   <th style={{ textAlign: 'left' }}>イベント</th>
                 </tr>
@@ -524,6 +526,7 @@ export function Result({
                     <td>{r.year}</td>
                     <td>{r.age}</td>
                     <td>{Math.round(r.income).toLocaleString('ja-JP')}</td>
+                    <td>{Math.round(r.loanTaxCredit).toLocaleString('ja-JP')}</td>
                     <td>{Math.round(r.living).toLocaleString('ja-JP')}</td>
                     <td>{Math.round(r.housing + r.lumpExpense).toLocaleString('ja-JP')}</td>
                     <td>{Math.round(r.education).toLocaleString('ja-JP')}</td>
@@ -539,6 +542,7 @@ export function Result({
                       {Math.round(r.cash).toLocaleString('ja-JP')}
                     </td>
                     <td>{Math.round(r.investments).toLocaleString('ja-JP')}</td>
+                    <td>{Math.round(r.ideco).toLocaleString('ja-JP')}</td>
                     <td className={r.totalAssets < 0 ? 'is-negative' : undefined}>
                       {Math.round(r.totalAssets).toLocaleString('ja-JP')}
                     </td>
@@ -568,6 +572,15 @@ export function Result({
             </li>
             <li>
               現金には預金金利、投資資産には想定利回りを別々に適用し、積立額は現金から投資へ振り替えます。積立は設定した年齢で止まり、取り崩し開始後は「取り崩し開始後の利回り」に切り替わります。選んだ出口戦略に加えて、現金が不足した年は不足分だけ追加で取り崩します。
+            </li>
+            <li>
+              物価上昇率を生活費・教育費・家賃・大型出費に反映しています（年金・退職金・ローン返済額・物件価格は据え置き）。
+            </li>
+            <li>
+              住宅ローン控除は年末残高（上限あり）に控除率を掛けた額を、その年の所得税と住民税（課税所得の5%・上限9.75万円）の範囲で戻します。
+            </li>
+            <li>
+              iDeCo・企業型DCの掛金は全額を所得控除として手取りに反映し、60歳まで別に運用したうえで投資資産に合流させます。受け取り時の退職所得控除・公的年金等控除は考慮していません。
             </li>
             <li>
               退職後の生活費は現役期の85%、年金は65歳から受け取る前提です。インフレは考慮していません。

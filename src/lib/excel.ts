@@ -242,10 +242,18 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
   I.input('income', '本人の年収（額面）', info.income, { fmt: MONEY });
   I.input('spouseIncome', '配偶者の年収（額面）', info.spouseIncome, { fmt: MONEY });
   I.input('raise', '昇給率', info.raiseRate / 100, { fmt: RATE, note: '毎年この率で年収が増える前提' });
+  I.input('inflation', '物価上昇率', (info.inflationRate ?? 0) / 100, {
+    fmt: RATE,
+    note: '生活費・教育費・家賃・大型出費に反映します（年金・退職金・ローン返済額は据え置き）',
+  });
   I.input('retireAge', '退職年齢', info.retireAge);
   I.input('retirementPay', '退職金', info.retirementPay, { fmt: MONEY });
   I.input('pensionAge', '年金の受給開始年齢', 65);
   I.input('pensionMonthly', '年金の月額（世帯合計）', info.pensionMonthly, { fmt: MONEY });
+  I.input('macroSlide', '年金のマクロ経済スライド調整率', 0.009, {
+    fmt: RATE,
+    note: '年金額は物価上昇率からこの分を引いた率で増えます',
+  });
   I.input('pensionNetLow', '年金手取り率（180万円以下）', 0.94, { fmt: RATE });
   I.input('pensionNetHigh', '年金手取り率（180万円超）', 0.88, { fmt: RATE });
   I.skip();
@@ -374,6 +382,18 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     '#,##0.00',
   );
   I.formula('loanAnnual', '年間返済額（自動計算）', `${I.ref.loanMonthly}*12`);
+  I.input('taxCredit', '住宅ローン控除', (answers.housing.taxCredit ?? true) ? '有' : '無', {
+    list: ['有', '無'],
+    note: '年末残高×控除率が所得税・住民税から戻ります',
+  });
+  I.input('creditYears', '控除期間', answers.housing.creditYears ?? 13, {
+    note: '年。新築は13年、中古は10年が目安',
+  });
+  I.input('creditRate', '控除率', (answers.housing.creditRate ?? 0.7) / 100, { fmt: RATE });
+  I.input('creditLimit', '控除対象の残高上限', answers.housing.creditLimit ?? 3000, {
+    fmt: MONEY,
+    note: '住宅の省エネ性能により2,000〜5,000万円',
+  });
   I.skip();
 
   I.section('■ 大型出費');
@@ -522,6 +542,14 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
   I.input('investments', '投資資産', info.investments, { fmt: MONEY });
   I.input('cashRate', '預金金利', info.cashRate / 100, { fmt: RATE });
   I.input('investRate', '投資の想定利回り', info.investmentRate / 100, { fmt: RATE });
+  I.input('idecoMonthly', 'iDeCo・企業型DCの掛金（月額）', info.idecoMonthly ?? 0, {
+    fmt: MONEY,
+    note: '自分で出す掛金。全額が所得控除になり、60歳まで引き出せません',
+  });
+  I.input('idecoBalance', 'iDeCo・企業型DCの現在の残高', info.idecoBalance ?? 0, { fmt: MONEY });
+  I.input('idecoReleaseAge', 'iDeCo を受け取れる年齢', 60, {
+    note: 'この年に投資資産へ合流させます',
+  });
   I.input('monthlyInvest', '毎月の積立額', info.monthlyInvestment, {
     fmt: MONEY,
     note: '現金から投資へ振り替える額。余剰が足りない年は自動的に減額されます',
@@ -753,14 +781,22 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
         `${who}Insurance`,
         `IF(AND(${taxed},${g}>=${R.insThreshold}),MIN(${g},${R.insCap})*${R.insRate}+MAX(0,${g}-${R.insCap})*${R.insOverRate},0)`,
       );
-      put(`${who}Taxable`, `IF(${taxed},MAX(0,${g}-${ded}-${ins}-${R.basicDeductionTax}),0)`);
+      // iDeCo の掛金は本人の課税所得から差し引く（小規模企業共済等掛金控除）
+      const idecoDeduct =
+        who === 'self'
+          ? `IF(AND(${age}<${R.idecoReleaseAge},${age}<${R.contributionEndAge}),${R.idecoMonthly}*12,0)`
+          : '0';
+      put(
+        `${who}Taxable`,
+        `IF(${taxed},MAX(0,${g}-${ded}-${ins}-${idecoDeduct}-${R.basicDeductionTax}),0)`,
+      );
       put(
         `${who}IncomeTax`,
         `IF(${taxed},MAX(0,INDEX(${taxRate},MATCH(${taxable},${taxLo},1))*${taxable}-INDEX(${taxSub},MATCH(${taxable},${taxLo},1)))*${R.reconstructionRate},0)`,
       );
       put(
         `${who}ResidentTax`,
-        `IF(${taxed},MAX(0,${g}-${ded}-${ins}-${R.basicDeductionRes})*${R.residentRate}+${R.residentFlat},0)`,
+        `IF(${taxed},MAX(0,${g}-${ded}-${ins}-${idecoDeduct}-${R.basicDeductionRes})*${R.residentRate}+${R.residentFlat},0)`,
       );
       put(
         `${who}Net`,
@@ -768,7 +804,10 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
       );
     });
 
-    put('pensionGross', `IF(${age}>=${R.pensionAge},${R.pensionMonthly}*12,0)`);
+    put(
+      'pensionGross',
+      `IF(${age}>=${R.pensionAge},${R.pensionMonthly}*12*(1+MAX(0,${R.inflation}-${R.macroSlide}))^${el},0)`,
+    );
     put(
       'pensionNet',
       `IF(${A('pensionGross', row)}<=0,0,IF(${A('pensionGross', row)}<=180,${A('pensionGross', row)}*${R.pensionNetLow},${A('pensionGross', row)}*${R.pensionNetHigh}))`,
@@ -795,13 +834,37 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
             })
             .join('+'),
     );
-    put('lumpIncome', `IF(${age}=${R.retireAge},${R.retirementPay},0)`);
+    // 退職金は賃金水準に連動して増える前提
+    put('lumpIncome', `IF(${age}=${R.retireAge},${R.retirementPay}*(1+${R.raise})^${el},0)`);
+
+    // 住宅ローン控除：元利均等返済の年末残高に控除率を掛け、納めた税額の範囲で戻る
+    const monthlyRate = `${R.loanRate}/12`;
+    const totalMonths = `${R.loanYears}*12`;
+    const passedMonths = `(${y}-${R.buyYear})*12`;
+    put(
+      'loanBalance',
+      `IF(AND(${R.buying}="有",${y}>=${R.buyYear},${y}<${R.buyYear}+${R.loanYears}),` +
+        `${R.loanPrincipal}*((1+${monthlyRate})^(${totalMonths})-(1+${monthlyRate})^(${passedMonths}))/((1+${monthlyRate})^(${totalMonths})-1),0)`,
+    );
+    // 住民税からの控除は課税所得の5%（上限9.75万円）まで
+    const residentTaxable = `MAX(0,${A('selfGross', row)}-${A('selfDeduction', row)}-${A('selfInsurance', row)}-${R.basicDeductionRes})`;
+    put(
+      'loanTaxCredit',
+      `IF(AND(${R.buying}="有",${R.taxCredit}="有",${y}>=${R.buyYear},${y}<${R.buyYear}+${R.creditYears}),` +
+        `MAX(0,MIN(MIN(${A('loanBalance', row)},${R.creditLimit})*${R.creditRate},` +
+        `${A('selfIncomeTax', row)}+MIN((${residentTaxable})*0.05,9.75))),0)`,
+    );
+
     put(
       'income',
-      `${A('selfNet', row)}+${A('spouseNet', row)}+${A('pensionNet', row)}+${A('allowance', row)}+${A('lumpIncome', row)}`,
+      `${A('selfNet', row)}+${A('spouseNet', row)}+${A('pensionNet', row)}+${A('allowance', row)}+${A('lumpIncome', row)}+${A('loanTaxCredit', row)}`,
     );
 
     // --- 支出 ---
+    // 物価上昇は支出側に反映する（収入は昇給率で別に扱う）
+    put('priceLevel', `(1+${R.inflation})^${el}`);
+    const price = A('priceLevel', row);
+
     // 子ども 1 人ずつの養育費（年齢帯で切り替え）
     const careTerm = children
       .map((_, ci) => {
@@ -812,13 +875,13 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
       .join('+');
     put(
       'living',
-      `MAX(0,IF(${age}>=${R.retireAge},${R.livingMonthly}*12*${R.retiredRatio},${R.livingMonthly}*12)${careTerm ? `+${careTerm}` : ''})`,
+      `MAX(0,IF(${age}>=${R.retireAge},${R.livingMonthly}*12*${R.retiredRatio},${R.livingMonthly}*12)${careTerm ? `+${careTerm}` : ''})*${price}`,
     );
     put(
       'education',
       children.length === 0
         ? '0'
-        : children
+        : `(${children
             .map((_, ci) => {
               const a = A(`childAge${ci}`, row);
               // 最終学歴から決まる上限年齢を過ぎたら計上しない
@@ -826,7 +889,7 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
               const entry = `IF(${a}=12,${entryApply('C')},0)+IF(${a}=15,${entryApply('D')},0)+IF(${a}=18,${entryApply('E')},0)+IF(${a}=22,${entryApply('F')},0)`;
               return `IF(AND(ISNUMBER(${a}),${a}<=${R.supportEndAge}),${stage}+${entry},0)`;
             })
-            .join('+'),
+            .join('+')})*${price}`,
     );
     // 引越し：その年までで最後に発生した引越しの家賃を使う
     put('moveYear', `SUMPRODUCT(MAX((${moveYearRange}>0)*(${moveYearRange}<=${y})*${moveYearRange}))`);
@@ -838,16 +901,16 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     const owned = `AND(${R.buying}="有",${y}>=${R.buyYear})`;
     // 住居費：購入した持ち家 → 引越し後の賃貸 → いまの住まい（持ち家なら残返済＋維持費）
     const currentHome =
-      `IF(${R.homeType}="持ち家",IF(${el}<${R.loanRemainingYears},${R.rent},0)*12+${R.homeUpkeepMonthly}*12,${R.rent}*12)`;
+      `IF(${R.homeType}="持ち家",IF(${el}<${R.loanRemainingYears},${R.rent},0)*12+${R.homeUpkeepMonthly}*12*${price},${R.rent}*12*${price})`;
     put(
       'housing',
-      `IF(${owned},IF(${y}<=${R.buyYear}+${R.loanYears}-1,${R.loanAnnual},0)+${R.price}*${R.upkeepRate},` +
-        `IF(${A('moveYear', row)}=0,${currentHome},${A('moveRent', row)}*12))`,
+      `IF(${owned},IF(${y}<=${R.buyYear}+${R.loanYears}-1,${R.loanAnnual},0)+${R.price}*${R.upkeepRate}*${price},` +
+        `IF(${A('moveYear', row)}=0,${currentHome},${A('moveRent', row)}*12*${price}))`,
     );
     put(
       'lumpExpense',
       `IF(AND(${R.buying}="有",${y}=${R.buyYear}),${R.downPayment}+${R.price}*${R.feeRate},0)+` +
-        `IF(${owned},0,SUMPRODUCT((${moveYearRange}=${y})*${moveRentRange}*${moveMonthsRange}))`,
+        `IF(${owned},0,SUMPRODUCT((${moveYearRange}=${y})*${moveRentRange}*${moveMonthsRange})*${price})`,
     );
     // 大型出費：1 回だけの支出はその年に、繰り返しの支出は間隔ごとに計上する。
     // 「◯歳まで」を指定した繰り返しは、その年齢を過ぎたら発生させない。
@@ -855,10 +918,10 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
       `(${bigYear}>0)*(${bigYear}<=${y})*` +
       `((${bigRepeat}<=0)*(${bigYear}=${y})+` +
       `(${bigRepeat}>0)*(MOD(${y}-${bigYear},${bigRepeat}+(${bigRepeat}<=0))=0)*((${bigUntil}<=0)+(${bigUntil}>0)*(${age}<=${bigUntil})))`;
-    put('bigExpense', `SUMPRODUCT(${bigHit}*${bigAmount})`);
+    put('bigExpense', `SUMPRODUCT(${bigHit}*${bigAmount})*${price}`);
     put(
       'investmentFunded',
-      `SUMPRODUCT(${bigHit}*(${bigFunding}="投資")*${bigAmount})+` +
+      `SUMPRODUCT(${bigHit}*(${bigFunding}="投資")*${bigAmount})*${price}+` +
         `IF(AND(${R.buying}="有",${y}=${R.buyYear},${R.housingFunding}="投資"),${R.downPayment}+${R.price}*${R.feeRate},0)`,
     );
     put(
@@ -874,7 +937,16 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
       'investmentGain',
       `IF(${prevInv}>0,${prevInv}*IF(${age}>=${R.withdrawalStartAge},${R.postReturnRate},${R.investRate}),0)`,
     );
-    const cashBefore = `${prevCash}+${A('cashInterest', row)}+${A('balance', row)}`;
+    // iDeCo：60歳まで別に運用し、60歳になったら投資資産へ合流させる
+    const prevIdeco = first ? R.idecoBalance : A('ideco', row - 1);
+    put(
+      'idecoContribution',
+      `IF(AND(${age}<${R.idecoReleaseAge},${age}<${R.contributionEndAge}),${R.idecoMonthly}*12,0)`,
+    );
+    const idecoGrown = `${prevIdeco}*(1+IF(${age}>=${R.withdrawalStartAge},${R.postReturnRate},${R.investRate}))+${A('idecoContribution', row)}`;
+    put('ideco', `IF(${age}>=${R.idecoReleaseAge},0,${idecoGrown})`);
+    const idecoRelease = `IF(${age}>=${R.idecoReleaseAge},${idecoGrown},0)`;
+    const cashBefore = `${prevCash}+${A('cashInterest', row)}+${A('balance', row)}-${A('idecoContribution', row)}`;
     // 積立額：その年までで最後に指定された月額を使う
     put(
       'investChangeYear',
@@ -890,7 +962,7 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
       'contribution',
       `IF(${age}<${R.contributionEndAge},MAX(0,MIN(${A('monthlyInvestment', row)}*12,${cashBefore})),0)`,
     );
-    const invAfterContrib = `${prevInv}+${A('investmentGain', row)}+${A('contribution', row)}`;
+    const invAfterContrib = `${prevInv}+${A('investmentGain', row)}+${A('contribution', row)}+${idecoRelease}`;
     // 「投資から払う」と指定した支出のぶんを先に取り崩す
     put(
       'expenseWithdrawal',
@@ -913,7 +985,7 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     );
     put('cash', `${cashAfterContrib}+${A('withdrawal', row)}`);
     put('investments', `${invAfterPlanned}-${A('withdrawal', row)}`);
-    put('total', `${A('cash', row)}+${A('investments', row)}`);
+    put('total', `${A('cash', row)}+${A('investments', row)}+${A('ideco', row)}`);
     put('shortYear', `IF(${A('total', row)}<0,${y},"")`);
 
     const evCell = calcWs.getCell(row, idx.events);

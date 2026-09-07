@@ -64,7 +64,10 @@ export function parseInfo(raw: unknown): BasicInfo {
     cashRate: num(o.cashRate, d.cashRate),
     investmentRate: num(o.investmentRate, d.investmentRate),
     monthlyInvestment: num(o.monthlyInvestment, d.monthlyInvestment),
+    idecoMonthly: num(o.idecoMonthly, d.idecoMonthly),
+    idecoBalance: num(o.idecoBalance, d.idecoBalance),
     raiseRate: num(o.raiseRate, d.raiseRate),
+    inflationRate: num(o.inflationRate, d.inflationRate),
     retireAge: num(o.retireAge, d.retireAge),
     retirementPay: num(o.retirementPay, d.retirementPay),
     pensionMonthly: num(o.pensionMonthly, d.pensionMonthly),
@@ -244,6 +247,10 @@ export function parseAnswers(raw: unknown): PlanAnswers {
       loanYears: num(housing.loanYears, d.housing.loanYears),
       loanRate: num(housing.loanRate, d.housing.loanRate),
       fundedBy: housing.fundedBy === 'investment' ? ('investment' as const) : ('cash' as const),
+      taxCredit: bool(housing.taxCredit, d.housing.taxCredit),
+      creditYears: num(housing.creditYears, d.housing.creditYears),
+      creditRate: num(housing.creditRate, d.housing.creditRate),
+      creditLimit: num(housing.creditLimit, d.housing.creditLimit),
     },
     // 旧形式（moving: 単一の引越し）は 1 件のリストへ読み替える
     moves: Array.isArray(o.moves)
