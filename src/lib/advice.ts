@@ -1,4 +1,4 @@
-import { yen } from './format';
+import { yen, yenFine } from './format';
 import type { Advice, BasicInfo, PlanAnswers, SimulationResult } from './types';
 
 interface Scored extends Advice {
@@ -29,24 +29,24 @@ export function buildAdvice(
       score: 100,
       level: 'critical',
       title: `${depletion.age}歳（${depletion.year}年）で貯蓄が底をつきます`,
-      body: `このままの計画では${depletion.year}年に残高がマイナスに転じ、生涯で最大${yen(
+      body: `${depletion.year}年に残高がマイナスへ転じ、生涯で最大${yen(
         shortfall,
-      )}不足します。退職までの${workingYears}年間で埋めるには、年あたり${yen(
+      )}足りません。退職までの${workingYears}年で埋めるなら、年${yen(
         shortfall / workingYears,
-      )}の収支改善（月${yen(
+      )}・月${yen(
         shortfall / workingYears / 12,
-      )}）が必要です。支出の見直し（住居費・保険・通信費）、就労期間の延長、共働き期間の確保を組み合わせて検討してください。`,
+      )}の改善が要ります。効きやすいのは住居費と保険の見直し、そして働く期間を延ばすことです。`,
     });
   } else if (minRow.totalAssets < (info.livingCost * 12) / 2) {
     list.push({
       score: 90,
       level: 'warning',
       title: `${minRow.age}歳ごろに残高が生活費6か月分を下回ります`,
-      body: `最も残高が少なくなるのは${minRow.year}年の${yen(
+      body: `いちばん少ないのは${minRow.year}年の${yen(
         minRow.totalAssets,
-      )}です。病気や失業に備え、生活費6か月分（${yen(
+      )}。病気や失業に備えるなら、生活費6か月分（${yen(
         (info.livingCost * 12) / 2,
-      )}）は常に現預金で確保できるよう、この時期の大きな支出を前後にずらすことを検討してください。`,
+      )}）は現預金で持っておきたいところです。この時期に重なっている大きな支出を、前後の年へずらせないか見てみてください。`,
     });
   }
 
@@ -61,30 +61,30 @@ export function buildAdvice(
       list.push({
         score: 85,
         level: 'critical',
-        title: '老後の資金が不足する見込みです',
+        title: '老後の資金が足りません',
         body: `退職時（${info.retireAge}歳）の資産は${yen(
           atRetirement.totalAssets,
-        )}ですが、年金だけでは年平均${yen(
+        )}。年金だけでは年${yen(
           Math.abs(retiredDeficit),
-        )}の赤字が続きます。65〜70歳まで働く、iDeCoや企業年金を上乗せする、退職後の生活費を1割抑えるといった対策で、必要額は大きく変わります。`,
+        )}の赤字が続きます。数年長く働く、iDeCoを足す、退職後の生活費を1割落とす。このどれか一つでも必要額はかなり変わります。`,
       });
     } else if (final.totalAssets < info.livingCost * 12 * 3) {
       list.push({
         score: 70,
         level: 'warning',
-        title: '老後資金にゆとりが少なめです',
-        body: `95歳時点の残高は${yen(
+        title: '老後資金の余裕が薄めです',
+        body: `95歳時点で${yen(
           final.totalAssets,
-        )}で、想定外の医療・介護費（自己負担は1人あたり300万〜600万円が目安）を賄うには心もとない水準です。退職を2〜3年遅らせるだけでも収支は大きく改善します。`,
+        )}。医療や介護の自己負担は1人300万〜600万円が目安なので、この残高だと足りなくなる年が出かねません。退職を2〜3年うしろにずらすだけでも景色が変わります。`,
       });
     } else {
       list.push({
         score: 40,
         level: 'good',
-        title: '老後まで資産が持続する見込みです',
-        body: `退職時に${yen(atRetirement.totalAssets)}、95歳時点でも${yen(
+        title: '老後まで資産が持ちます',
+        body: `退職時に${yen(atRetirement.totalAssets)}、95歳時点で${yen(
           final.totalAssets,
-        )}を確保できる計画です。余裕分は繰り上げ返済や生前贈与、旅行・住み替えなど「使う計画」も併せて考えられます。`,
+        )}残る計算です。ここまで余るなら、繰り上げ返済や住み替え、旅行といった「使う計画」も一緒に考えたいところです。`,
       });
     }
   }
@@ -95,20 +95,20 @@ export function buildAdvice(
       score: 75,
       level: 'warning',
       title: `現役期の貯蓄率が${savingRate.toFixed(0)}%と低めです`,
-      body: `手取りに対する年間貯蓄は平均${yen(
+      body: `貯まるのは年平均${yen(
         avgBalance,
-      )}です。手取りの15〜20%（月${yen(
+      )}。目安は手取りの15〜20%、月${yen(
         (avgIncome * 0.175) / 12,
-      )}前後）を先取りで貯蓄・積立に回す仕組みにすると、無理なく水準を引き上げられます。`,
+      )}ほどです。余った分を貯めるのではなく、給料日に先に別口座へ移すほうが続きます。`,
     });
   } else if (savingRate >= 20) {
     list.push({
       score: 35,
       level: 'good',
-      title: `現役期の貯蓄率は${savingRate.toFixed(0)}%と良好です`,
+      title: `現役期の貯蓄率は${savingRate.toFixed(0)}%あります`,
       body: `年平均${yen(
         avgBalance,
-      )}を積み上げられる計画です。この水準を維持できるなら、余剰資金の一部を長期の資産運用に回すことで、同じ入金額でも将来の残高を伸ばせます。`,
+      )}のペース。この水準を保てるなら、当面使わない分を運用に回すと、同じ入金額でも最後の残高が変わってきます。`,
     });
   }
 
@@ -130,11 +130,11 @@ export function buildAdvice(
         score: 80,
         level: 'warning',
         title: `住宅ローンの返済負担率が${burden.toFixed(0)}%と高めです`,
-        body: `年間返済額は${yen(
+        body: `年間の返済は${yen(
           result.annualLoanPayment,
-        )}で、額面年収の25%を超えています。借入額を${yen(
+        )}で、額面年収の25%を超えています。この水準だと教育費のピークと重なったときに苦しくなります。借入を${yen(
           Math.max(0, answers.housing.price - answers.housing.downPayment) * 0.15,
-        )}ほど圧縮するか、返済期間を延ばして月々の負担を下げると、教育費のピークと重なっても家計が回りやすくなります。`,
+        )}ほど減らすか、返済期間を延ばして月々を軽くしておくと安全側に寄せられます。`,
       });
     }
     if (downRate < 20) {
@@ -142,11 +142,11 @@ export function buildAdvice(
         score: 60,
         level: 'info',
         title: `頭金は物件価格の${downRate.toFixed(0)}%です`,
-        body: `頭金2割（${yen(
+        body: `よく言われる目安は2割（${yen(
           answers.housing.price * 0.2,
-        )}）が目安とされます。ただし今は低金利のため、手元資金を残して借りる判断も合理的です。購入直後の残高は${yen(
+        )}）ですが、金利が低いうちは手元を厚くしておく判断も十分あります。判断の基準は購入直後の残高で、この計画では${yen(
           cashAfter,
-        )}となる見込みで、生活費6か月分を割り込まないかを基準に考えてください。`,
+        )}。ここが生活費6か月分を切らないかどうかです。`,
       });
     }
   }
@@ -169,18 +169,18 @@ export function buildAdvice(
       body: `${moves
         .map(
           (m) =>
-            `${m.yearsLater}年後：${m.label || '引越し'}（家賃 月${yen(m.monthlyRent)}、初期費用 ${yen(
+            `${m.yearsLater}年後：${m.label || '引越し'}（家賃 月${yenFine(m.monthlyRent)}、初期費用 ${yen(
               m.monthlyRent * m.initialCostMonths,
             )}）`,
         )
         .join(' / ')}。${
         answers.housing.planned
           ? `${answers.housing.yearsLater}年後の住宅購入までの住まいとして計算しています。`
-          : `最終的な家賃は月${yen(
+          : `最後は月${yenFine(
               last.monthlyRent,
-            )}です。住居費は生涯で${yen(
+            )}。住居費は生涯で${yen(
               lifetimeHousing,
-            )}になり、同じ支出でも購入なら資産が残るため、住み続ける年数が長いほど購入との比較に意味があります。`
+            )}かかります。同じ額を払うなら購入は手元に資産が残る形なので、長く住むつもりなら比べてみる価値があります。`
       }`,
     });
   }
@@ -198,10 +198,10 @@ export function buildAdvice(
       body: peakDeficit
         ? `この年の収支は${yen(
             eduPeak.balance,
-          )}の赤字になります。大学入学までの期間を使い、学資保険やつみたてNISAで1人あたり300万〜500万円を先に準備しておくと、直前の家計圧迫を避けられます。`
-        : `ピーク時でも収支は${yen(
+          )}の赤字。大学に入るまでに1人300万〜500万円を別枠で貯めておけば、直前に慌てずに済みます。学資保険でもつみたてNISAでも構いません。`
+        : `ピークでも収支は${yen(
             eduPeak.balance,
-          )}を維持できます。教育費は進路で大きく変わるため、私立・浪人・留学の可能性がある場合は1人あたり200万円程度の上振れを見込んでおくと安心です。`,
+          )}で黒字です。ただし教育費は進路しだいで動きます。私立・浪人・留学の芽があるなら、1人あたり200万円ほど多めに見ておくと計画が崩れません。`,
     });
   }
 
@@ -218,44 +218,48 @@ export function buildAdvice(
     list.push({
       score: 72,
       level: 'warning',
-      title: `${minCashRow.year}年ごろに現金が${yen(minCashRow.cash)}まで減ります`,
-      body: `生活防衛資金の目安は生活費6か月分（${yen(
+      title: `${minCashRow.year}年ごろに現金が${
+        minCashRow.cash < 1 ? 'ほぼなくなります' : `${yen(minCashRow.cash)}まで減ります`
+      }`,
+      body: `手元に置いておきたいのは生活費6か月分（${yen(
         emergencyFund,
-      )}）です。${
+      )}）。${
         withdrawalRow
-          ? `この計画では${withdrawalRow.year}年から投資資産の取り崩しが始まります。相場が下がっている時期に取り崩すと損失が確定するため、`
-          : '現金が薄いと急な出費に投資の売却で対応することになるため、'
-      }月々の積立額（現在 ${yen(
+          ? `この計画だと${withdrawalRow.year}年から投資を取り崩し始めます。相場が下がっている年に売ると損失が確定するので、`
+          : '現金が薄いと、急な出費のたびに投資を売ることになります。'
+      }この時期だけ積立（いま月${yenFine(
         info.monthlyInvestment,
-      )}/月）を一時的に減らし、現金を厚くしておくことを検討してください。`,
+      )}）を絞って、現金を厚くしておくのが無難です。`,
     });
   } else if (investRatio < 20 && avgBalance > 0) {
     list.push({
       score: 58,
       level: 'info',
       title: `資産の${(100 - investRatio).toFixed(0)}%が現金・預金です`,
-      body: `預金金利${info.cashRate}%に対し、投資の想定利回りは${
+      body: `預金金利${info.cashRate}%と投資の想定利回り${
         info.investmentRate
-      }%で計算しています。この差により、生涯の運用益は${yen(
+      }%の差は、生涯で運用益${yen(
         totalGain,
-      )}、預金利息は${yen(
+      )}に対し預金利息${yen(
         totalInterest,
-      )}となる見込みです。生活防衛資金（${yen(
+      )}という形で出ます。生活防衛資金の${yen(
         emergencyFund,
-      )}）を現金で確保したうえで、余剰分を新NISAのつみたて投資枠などに回すと差はさらに広がります。`,
+      )}を現金で確保したうえで、残りを新NISAのつみたて枠へ回すと差はさらに開きます。`,
     });
   } else if (totalGain > 0) {
     list.push({
       score: 32,
       level: 'good',
-      title: `投資の運用益は生涯で${yen(totalGain)}の見込みです`,
-      body: `想定利回り${info.investmentRate}%・月${yen(
+      title: `投資の運用益は生涯で${yen(totalGain)}になります`,
+      body: `想定利回り${info.investmentRate}%で月${yenFine(
         info.monthlyInvestment,
-      )}の積立を続けた場合の試算です（預金利息は${yen(
+      )}を積み立て続けた場合の数字です（預金利息は${yen(
         totalInterest,
-      )}）。利回りは前提次第で大きく変わるため、${
-        info.investmentRate >= 6 ? '6%以上の想定はやや強気です。4%前後でも' : '3%と5%でも'
-      }試算し、下振れした場合に計画が成り立つかを確認しておくと安心です。`,
+      )}）。${
+        info.investmentRate >= 6
+          ? '6%以上はやや強気なので、4%前後でも'
+          : '利回りは前提しだいで大きく動きます。3%と5%でも'
+      }計算して、下振れしたときに計画が持つかを見ておいてください。`,
     });
   }
 
@@ -290,16 +294,16 @@ export function buildAdvice(
         score: 68,
         level: 'warning',
         title: `${dropRow.year}年（${label}）に世帯の手取りが${yen(dropAmount)}減ります`,
-        body: `${dropRow.year}年の世帯手取りは${yen(
+        body: `この年の世帯手取りは${yen(
           dropRow.workIncome + dropRow.benefitIncome,
-        )}、年間収支は${yen(dropRow.balance)}になります。${
+        )}、収支は${yen(dropRow.balance)}。${
           recovered
-            ? '収入は後の年で元の水準まで戻る計画ですが、この期間は積立を減らして現金を厚くしておくと安心です。'
-            : 'この水準が続く前提のため、生活費の見直しか、復帰時期・働き方の再検討が必要です。'
+            ? '収入はあとで元の水準に戻る計画なので、この数年だけ積立を絞って現金を残しておけば乗り切れます。'
+            : 'この水準がずっと続く前提です。生活費を見直すか、復帰の時期や働き方をもう一度考える必要があります。'
         }${
           benefitYears > 0
-            ? `育児休業給付金は非課税で社会保険料も免除されるため、手取りは額面の見た目より目減りしません（給付を${benefitYears}年分計上しています）。`
-            : '育休を取る場合は育児休業給付金（休業前賃金の67%→50%、非課税）も収入として登録できます。'
+            ? `なお育児休業給付金は非課税で社会保険料も免除なので、手取りは額面ほど減りません（${benefitYears}年分を計上しています）。`
+            : '育休を取るなら、育児休業給付金（休業前賃金の67%→50%、非課税）も収入として登録できます。'
         }`,
       });
     }
@@ -313,8 +317,8 @@ export function buildAdvice(
       list.push({
         score: 42,
         level: 'info',
-        title: `${best.yearsLater}年後の${best.label}で年収が${yen(best.newIncome - base)}増える前提です`,
-        body: `増収分をそのまま生活費に回さず、増えた手取りの半分を積立に上乗せする「先取り」を決めておくと、収入増がそのまま資産に反映されます。共働きに戻る場合は、社会保険の扶養から外れる年収の壁（106万円・130万円）も確認しておきましょう。`,
+        title: `${best.yearsLater}年後の${best.label}で年収が${yen(best.newIncome - base)}増えます`,
+        body: `増えた手取りは生活費に吸収されがちです。半分は積立に回す、と先に決めておくと、収入増がそのまま資産に残ります。パートから正社員に戻る場合は、社会保険の扶養を外れる年収の壁（106万円・130万円）にも注意してください。`,
       });
     }
   }
@@ -346,17 +350,17 @@ export function buildAdvice(
       title: `大型出費は生涯で${yen(totalBig)}（${bigRows.length}回）になります`,
       body: `${
         deficitRow
-          ? `${deficitRow.year}年（${deficitRow.events.join('・')}）はこの出費で収支が${yen(
+          ? `${deficitRow.year}年（${deficitRow.events.join('・')}）は、この出費で収支が${yen(
               deficitRow.balance,
-            )}の赤字になります。前後の年に分散させるか、目的別に積立てておくと家計への影響を抑えられます。`
-          : `いずれの年も収支は黒字を保てる計画です。`
+            )}の赤字になります。年をずらすか、目的別に少しずつ貯めておけば影響を抑えられます。`
+          : 'どの年も収支は黒字のままです。'
       }${
         repeating.length > 0
-          ? `繰り返し発生する出費（${repeating
-              .map((e) => `${e.label}：${e.repeatYears}年ごと`)
+          ? `繰り返す出費（${repeating
+              .map((e) => `${e.label}は${e.repeatYears}年ごと`)
               .join('、')}）だけで生涯${yen(
               repeatTotal,
-            )}になります。買い替え間隔を2年延ばす、1回あたりの予算を抑えるといった見直しは、単発の出費より効果が大きく出ます。`
+            )}。買い替えの間隔を2年延ばす、1回の予算を落とす、といった見直しは単発の出費をいじるより効きます。`
           : ''
       }`,
     });
@@ -374,28 +378,28 @@ export function buildAdvice(
     const startRow = rows.find((r) => r.age === retirement.withdrawalStartAge) ?? null;
 
     const detail: Record<string, string> = {
-      asNeeded: `不足分だけ売る方法は、値上がりした資産をできるだけ長く運用に置ける一方、相場が下がっている年に大きく売らざるを得ないこともあります。${
+      asNeeded: `不足分だけ売る方法なら、増えた資産をできるだけ長く運用に置けます。ただし相場が下がっている年でも、必要なら売らざるをえません。${
         forced.length > 0
-          ? `この計画では${forced[0].year}年から取り崩しが始まり、生涯で${yen(totalDrawn)}を売却します。`
-          : '生涯を通じて取り崩しは発生しない見込みです。'
+          ? `この計画では${forced[0].year}年から取り崩しが始まり、生涯で${yen(totalDrawn)}を売ります。`
+          : '今回の条件では、生涯を通じて取り崩しは発生しません。'
       }`,
       fixedAmount: `毎年${yen(
         retirement.fixedAmount,
-      )}（月${yen(
+      )}（月${yenFine(
         retirement.fixedAmount / 12,
-      )}）を定額で取り崩す計画です。生活設計は立てやすい一方、相場が下がった年も同じ額を売るため、資産の減りが早まることがあります。95歳時点の投資資産は${yen(
+      )}）ずつ取り崩します。使える額が読めるのは利点ですが、相場が下がった年も同じ額を売るぶん資産の減りは早まります。95歳時点で投資は${yen(
         investLeft,
-      )}の見込みです。`,
-      fixedRate: `毎年、残高の${retirement.fixedRate}%を取り崩す計画です。相場に応じて取り崩し額が増減するため資産が枯渇しにくい反面、下落した年は使えるお金も減ります。${
+      )}残る計算です。`,
+      fixedRate: `残高の${retirement.fixedRate}%ずつ取り崩します。相場に合わせて額が上下するので資産は枯れにくい反面、下落した年は使えるお金も減ります。${
         startRow
-          ? `${startRow.year}年（${retirement.withdrawalStartAge}歳）の取り崩し額は${yen(
+          ? `${retirement.withdrawalStartAge}歳の初年度（${startRow.year}年）は${yen(
               startRow.plannedWithdrawal,
-            )}の見込みです。`
+            )}です。`
           : ''
       }`,
-      cashOut: `${retirement.withdrawalStartAge}歳で全額を現金化する計画です。値動きの不安はなくなりますが、その後は預金金利${
+      cashOut: `${retirement.withdrawalStartAge}歳で全額を現金に換えます。値動きを気にせず済む代わりに、その後は預金金利${
         info.cashRate
-      }%しか付かないため、物価が年2%上がると30年で実質的な価値は約半分になります。一部だけ残して運用を続ける案も検討の余地があります。`,
+      }%だけ。物価が年2%上がるなら、30年で実質的な価値はおよそ半分です。一部は運用に残す形も考えられます。`,
     };
 
     strategyPicked = retirement.strategy !== 'asNeeded';
@@ -406,15 +410,15 @@ export function buildAdvice(
       level: 'info',
       title:
         retirement.strategy === 'asNeeded'
-          ? '老後は「必要な分だけ取り崩す」計画です'
+          ? '老後は足りない分だけ取り崩す設定です'
           : retirement.strategy === 'fixedAmount'
-            ? `老後は年${yen(retirement.fixedAmount)}の定額取り崩しです`
+            ? `老後は年${yen(retirement.fixedAmount)}ずつ取り崩す設定です`
             : retirement.strategy === 'fixedRate'
-              ? `老後は毎年${retirement.fixedRate}%の定率取り崩しです`
-              : `${retirement.withdrawalStartAge}歳で投資を全額現金化する計画です`,
+              ? `老後は毎年${retirement.fixedRate}%ずつ取り崩す設定です`
+              : `${retirement.withdrawalStartAge}歳で投資を全額現金にする設定です`,
       body: `${detail[retirement.strategy] ?? ''}${
         drawRows.length > 0 && retirement.postReturnRate < info.investmentRate
-          ? `取り崩し開始後の利回りは${retirement.postReturnRate}%（現役期は${info.investmentRate}%）として計算しています。`
+          ? `取り崩しを始めたあとの利回りは${retirement.postReturnRate}%（現役期は${info.investmentRate}%）で計算しています。`
           : ''
       }`,
     });
@@ -430,7 +434,7 @@ export function buildAdvice(
       title: `住宅ローン控除で${creditYears}年間に${yen(creditTotal)}戻ります`,
       body: `年末残高（上限${yen(
         answers.housing.creditLimit,
-      )}）に${answers.housing.creditRate}%を掛けた額が、所得税と住民税から戻る計算です。控除しきれない年があると満額は使えないため、繰り上げ返済は控除期間が終わってからのほうが有利になることがあります。`,
+      )}）の${answers.housing.creditRate}%が、所得税と住民税から戻ってきます。控除は納めた税額が上限なので、払う税が少ない年は使い切れません。繰り上げ返済は控除期間が終わってからのほうが得になることが多い、というのはこのためです。`,
     });
   }
 
@@ -441,17 +445,17 @@ export function buildAdvice(
     list.push({
       score: 40,
       level: 'good',
-      title: `iDeCoの掛金${yen(idecoMonthly)}/月で所得控除を受けられます`,
-      body: `${idecoYears}年間で${yen(
+      title: `iDeCoの掛金 月${yenFine(idecoMonthly)} が所得控除になります`,
+      body: `${idecoYears}年で${yen(
         totalContribution,
-      )}を拠出する計画です。掛金は全額が所得控除になるため、所得税・住民税が毎年軽くなります（年収により掛金の15〜30%程度）。60歳まで引き出せない点と、受け取り時に退職所得控除・公的年金等控除の範囲を超えると課税される点に注意してください。`,
+      )}を積み立てる計画です。掛金は全額が所得控除なので、毎年その15〜30%（年収によります）ぶん税金が軽くなります。ただし60歳まで引き出せません。受け取るときも、退職所得控除や公的年金等控除の枠を超えると課税されます。`,
     });
   } else {
     list.push({
       score: 34,
       level: 'info',
-      title: 'iDeCo・企業型DCの掛金が0になっています',
-      body: `掛金は全額が所得控除になるため、同じ額を通常の投資に回すより有利です。会社員の上限は月2.0〜2.3万円（企業年金の有無による）で、月2.3万円なら年収500万円の人で毎年5万円前後の節税になります。60歳まで引き出せない資金であることを踏まえて検討してください。`,
+      title: 'iDeCo・企業型DCの掛金が0のままです',
+      body: `同じ額を積み立てるなら、iDeCoのほうが有利です。掛金が全額所得控除になるぶん、税金が減ります。会社員の上限は月2.0〜2.3万円（企業年金があるかどうかで変わります）で、月2.3万円・年収500万円なら毎年5万円前後の節税。ただし60歳まで引き出せないので、当面使う予定のないお金に限ります。`,
     });
   }
 
@@ -461,12 +465,12 @@ export function buildAdvice(
     list.push({
       score: 36,
       level: 'info',
-      title: `物価上昇${inflation}%を見込むと、最終年の物価は今の${lastPrice.toFixed(2)}倍です`,
-      body: `いまの生活費${yen(
+      title: `物価上昇${inflation}%なら、最終年の物価はいまの${lastPrice.toFixed(2)}倍`,
+      body: `いま年${yen(
         info.livingCost * 12,
-      )}（年）が、最終年には${yen(
+      )}の生活費が、最終年には${yen(
         info.livingCost * 12 * lastPrice,
-      )}相当になる前提で計算しています。年金や退職金は据え置きで見ているため、実質的な受取額はその分目減りします。物価上昇に負けない運用ができるかが、老後資金の分かれ目です。`,
+      )}かかる計算です。年金は物価の伸びに追いつかない前提（マクロ経済スライド）で見ているので、受け取る額の重みはその分軽くなります。物価上昇に負けない運用ができるかどうかが、老後の分かれ目です。`,
     });
   }
 

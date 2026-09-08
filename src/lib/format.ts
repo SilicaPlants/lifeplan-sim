@@ -10,6 +10,14 @@ export function yen(man: number): string {
   return `${sign}${v.toLocaleString('ja-JP')}万円`;
 }
 
+/** 月額など、小数を含みうる金額（0.5万円などを丸めずに出す） */
+export function yenFine(man: number): string {
+  const rounded = Math.round(man * 10) / 10;
+  const sign = rounded < 0 ? '−' : '';
+  const v = Math.abs(rounded);
+  return `${sign}${v % 1 === 0 ? v.toLocaleString('ja-JP') : v.toFixed(1)}万円`;
+}
+
 /** 軸ラベル用の短い表記 */
 export function yenShort(man: number): string {
   const sign = man < 0 ? '−' : '';

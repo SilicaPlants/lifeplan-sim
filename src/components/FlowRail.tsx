@@ -37,7 +37,7 @@ export function FlowRail({ answers, currentIndex, onJump }: Props) {
               </span>
             </button>
             {s.id === 'housing' && answers.housing.planned && i <= currentIndex && (
-              <div className="flow-branch">購入までの住まいは引越しで設定できます</div>
+              <div className="flow-branch">購入までの住まいは「引越し」で設定</div>
             )}
           </Fragment>
         );

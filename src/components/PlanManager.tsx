@@ -104,7 +104,7 @@ export function PlanManager({
       setMessage(msg);
       setError(null);
     } else {
-      setError('保存できませんでした。ブラウザの保存容量がいっぱいか、プライベートモードの可能性があります。');
+      setError('保存できませんでした。ブラウザの保存容量がいっぱいか、プライベートモードのようです。');
     }
   };
 
@@ -173,7 +173,7 @@ export function PlanManager({
       const text = await file.text();
       const imported = parseImport(text);
       if (imported.length === 0) {
-        setError('読み込めるプランが見つかりませんでした。書き出したファイルか確認してください。');
+        setError('プランが見つかりませんでした。このアプリで書き出したファイルか確かめてください。');
         return;
       }
       const existingIds = new Set(plans.map((p) => p.id));
@@ -183,7 +183,7 @@ export function PlanManager({
       );
       persist([...added, ...plans], `${added.length}件のプランを読み込みました。`);
     } catch {
-      setError('ファイルを読み込めませんでした。JSON 形式か確認してください。');
+      setError('ファイルを読み込めませんでした。JSON 形式か確かめてください。');
     }
   };
 
@@ -277,7 +277,7 @@ export function PlanManager({
 
           {plans.length === 0 ? (
             <p className="field-desc">
-              まだ保存されたプランはありません。条件を変えたシミュレーションを保存しておくと、あとから呼び出して比べられます。
+              まだ保存したプランはありません。条件を変えた案を保存しておくと、あとから呼び出して見比べられます。
             </p>
           ) : (
             <ul className="plan-list">
@@ -367,7 +367,7 @@ export function PlanManager({
           )}
 
           <p className="field-desc" style={{ marginTop: 14 }}>
-            プランはこのブラウザに保存されます。別の端末で使う場合や念のためのバックアップには「ファイルに書き出す」をご利用ください。
+            プランはこのブラウザに保存されます。別の端末で使うときやバックアップには「ファイルに書き出す」を。
           </p>
         </div>
       </div>

@@ -6,7 +6,7 @@ import {
   defaultEducationPath,
 } from '../lib/defaults';
 import { annualLoanPayment, educationCost, supportEndAgeFor } from '../lib/finance';
-import { yen } from '../lib/format';
+import { yen, yenFine } from '../lib/format';
 import type { StepMeta } from '../lib/flow';
 import type {
   BasicInfo,
@@ -616,7 +616,7 @@ export function QuestionCard({
       {step.id === 'income' && (
         <>
           <p className="q-desc">
-            転職・育休・時短勤務・専業主婦（主夫）・役職定年など、収入が変わる予定を登録できます。件数の制限はありません。
+            転職、育休、時短勤務、専業主婦（主夫）、役職定年。収入が変わる予定を、何件でも登録できます。
           </p>
           <div className="q-choices">
             <Choice
@@ -655,7 +655,7 @@ export function QuestionCard({
 
               {answers.incomeEvents.length === 0 ? (
                 <p className="field-desc">
-                  まだ登録がありません。上のボタンから追加するか、「収入の変化を追加」で自由に入力してください。
+                  まだ登録がありません。上のボタンから選ぶか、「収入の変化を追加」で自由に入れてください。
                 </p>
               ) : (
                 <div className="event-list">
@@ -756,8 +756,8 @@ export function QuestionCard({
                 )}
               </div>
               <p className="field-desc" style={{ marginTop: 12 }}>
-                区分を「給付金」にすると、育児休業給付金のように非課税・社会保険料免除として扱い、手取り＝入力額で計算します。年収 0
-                は無収入（専業主婦・主夫など）を意味します。役職定年は年収が2〜3割下がるのが一般的ですが、時期も下げ幅も会社によって違うため、追加したあとに調整してください。定年後の再雇用も同じように登録できます。
+                区分が「給付金」の行は、育児休業給付金のように非課税・社会保険料も免除として扱うため、入力額がそのまま手取りになります。年収 0
+                は無収入（専業主婦・主夫など）です。役職定年の下げ幅は2〜3割が一般的ですが、時期も幅も会社によります。追加したあとに数字を合わせてください。定年後の再雇用も同じ形で登録できます。
               </p>
             </div>
           )}
@@ -767,7 +767,7 @@ export function QuestionCard({
       {step.id === 'children' && (
         <>
           <p className="q-desc">
-            これから生まれる予定の人数を選んでください（すでにいるお子さんは基本情報から反映済みです）。
+            これから生まれる予定の人数です。すでにいるお子さんは基本情報から反映されています。
           </p>
           <div className="q-choices">
             {[0, 1, 2, 3, 4].map((c) => (
@@ -881,7 +881,7 @@ export function QuestionCard({
                   教育費を調整する（この方針だとお子さん1人あたり {yen(eduTotal)}）
                 </summary>
                 <p className="field-desc" style={{ marginTop: 12 }}>
-                  文部科学省の学習費調査などをもとにした年額の目安で、授業料・通学費・制服・給食費に加えて塾や習い事の費用まで含みます。
+                  文部科学省の学習費調査などをもとにした年額です。授業料のほか、通学費・制服・給食費・塾や習い事の費用まで含みます。
                   <strong>公立と私立の差はこの表で表現しているため</strong>
                   、下の養育費（食費・衣類・医療費など）は教育方針によらず同じ金額にしています。入学年には入学金（私立中20万円・私立高15万円・大学は公立15万円/私立30万円、大学院20万円）を自動で加算します。
                 </p>
@@ -944,7 +944,7 @@ export function QuestionCard({
                   養育費を調整する（お子さん1人あたり 0〜{supportEndAge}歳で {yen(careTotal)}）
                 </summary>
                 <p className="field-desc" style={{ marginTop: 12 }}>
-                  学費とは別に、食費・衣類・医療費・生活用品・小遣い・レジャー費や、世帯人数が増えることによる光熱費・通信費の増加分を見込む金額です。通学費・制服・給食費・塾代は上の教育費に含まれるため、ここには入れていません。お子さんが増えると、この金額が人数分そのまま生活費に加算されます。大学院に進む前提にした場合は、在学中も「18〜21歳」の金額が続きます。既定値は内閣府の子育て費用調査から保育料・学校教育費などの教育関連を差し引き、近年の物価上昇を加味した目安（1人あたり0〜21歳で約1,870万円）です。18歳以降に一人暮らしで仕送りをする場合は、18〜21歳を120〜150万円に上げてください。
+                  学費以外にかかるお金です。食費・衣類・医療費・生活用品・小遣い・レジャー費に加え、家族が増えることで上がる光熱費や通信費も含みます。通学費・制服・給食費・塾代は上の教育費に入っているので、ここには含めません。この金額が人数分そのまま生活費に乗ります。大学院に進む設定なら、在学中も「18〜21歳」の額が続きます。既定値は内閣府の子育て費用調査から保育料・学校教育費などの教育関連を差し引き、近年の物価上昇を加味した目安（1人あたり0〜21歳で約1,870万円）です。18歳以降に一人暮らしで仕送りをする場合は、18〜21歳を120〜150万円に上げてください。
                 </p>
                 <div className="grid">
                   {CARE_FIELDS.map((f) => {
@@ -990,7 +990,7 @@ export function QuestionCard({
       {step.id === 'housing' && (
         <>
           <p className="q-desc">
-            購入する場合は、購入後の家賃はなくなり、ローン返済と維持費（固定資産税・修繕費）に置き換えて計算します。
+            購入すると、その年から家賃はなくなり、ローン返済と維持費（固定資産税・修繕費）に置き換わります。
           </p>
           <div className="q-choices">
             <Choice
@@ -1119,7 +1119,7 @@ export function QuestionCard({
                     ) / 12,
                   )}
                 </strong>
-                （現在の住居費：{yen(info.rent)}/月）
+                （いまの住居費：{yenFine(info.rent)}/月）
               </p>
             </div>
           )}
@@ -1129,9 +1129,9 @@ export function QuestionCard({
       {step.id === 'moving' && (
         <>
           <p className="q-desc">
-            家族が増えるタイミングでの住み替えなど、家賃が変わる予定を何回でも登録できます。
+            家族が増えて手狭になったときの住み替えなど、家賃が変わる予定を何回でも登録できます。
             {answers.housing.planned
-              ? '住宅を購入するまでの住まいとして計算します（購入後は持ち家に切り替わります）。'
+              ? '住宅を買うまでの住まいとして計算します（購入後は持ち家に切り替わります）。'
               : ''}
           </p>
           <div className="q-choices">
@@ -1143,7 +1143,7 @@ export function QuestionCard({
             />
             <Choice
               title="予定なし"
-              desc={`いまの住居費 ${yen(info.rent)}/月 が続く前提`}
+              desc={`いまの住居費 ${yenFine(info.rent)}/月 のまま`}
               on={!moveOpen}
               onClick={() => {
                 setMoveOpenState(false);
@@ -1155,7 +1155,7 @@ export function QuestionCard({
             <div className="q-detail">
               {answers.moves.length === 0 ? (
                 <p className="field-desc">
-                  まだ登録がありません。「引越しを追加」から入力してください。
+                  まだ登録がありません。「引越しを追加」から入れてください。
                 </p>
               ) : (
                 <div className="event-list">
@@ -1252,7 +1252,7 @@ export function QuestionCard({
                 )}
               </div>
               <p className="field-desc" style={{ marginTop: 12 }}>
-                初期費用は敷金・礼金・引越し代の目安として、新しい家賃の指定した月数分をその年に計上します。
+                初期費用は敷金・礼金・引越し代の目安です。新しい家賃の指定した月数分を、その年の支出に入れます。
               </p>
             </div>
           )}
@@ -1262,7 +1262,7 @@ export function QuestionCard({
       {step.id === 'bigExpense' && (
         <>
           <p className="q-desc">
-            結婚式・車の購入・住宅のリフォーム・旅行など、まとまった支出を登録できます。車の買い替えのように繰り返す出費にも対応しています。
+            結婚式、車の購入、リフォーム、旅行。まとまった支出を登録できます。車の買い替えのように繰り返すものも扱えます。
           </p>
           <div className="q-choices">
             <Choice
@@ -1301,7 +1301,7 @@ export function QuestionCard({
 
               {answers.bigExpenses.length === 0 ? (
                 <p className="field-desc">
-                  まだ登録がありません。上のボタンから追加するか、「大型出費を追加」で自由に入力してください。
+                  まだ登録がありません。上のボタンから選ぶか、「大型出費を追加」で自由に入れてください。
                 </p>
               ) : (
                 <div className="event-list">
@@ -1450,8 +1450,7 @@ export function QuestionCard({
       {step.id === 'retirement' && (
         <>
           <p className="q-desc">
-            積み立てる額は途中で変えられます。退職後にどう現金化していくかで、資産の減り方も相場下落の影響も変わります。基本情報で設定した退職年齢は
-            {info.retireAge}歳です。
+            積み立てる額は途中で変えられます。退職後の取り崩し方によって、資産の減り方も相場下落の影響も変わります。退職年齢は基本情報で{info.retireAge}歳に設定しています。
           </p>
           <div className="q-choices">
             {STRATEGY_OPTIONS.map((o) => (
@@ -1467,11 +1466,11 @@ export function QuestionCard({
 
           <div className="q-detail">
             <div className="field-label" style={{ marginBottom: 8 }}>
-              積立額の変更（毎月 {yen(info.monthlyInvestment)} から始めます）
+              積立額の変更（毎月 {yenFine(info.monthlyInvestment)} から始めます）
             </div>
             {investmentChanges.length === 0 ? (
               <p className="field-desc">
-                ずっと同じ額で積み立てる前提です。子育て期に減らす、昇給後に増やすといった変化を登録できます。
+                いまはずっと同じ額で積み立てる設定です。子育て期に減らす、昇給後に増やす、といった変化を入れられます。
               </p>
             ) : (
               <div className="event-list">
@@ -1582,7 +1581,7 @@ export function QuestionCard({
               )}
             </div>
             <p className="field-desc" style={{ marginTop: 14 }}>
-              どの方法でも、現金が足りなくなった年は不足分だけ投資資産を追加で取り崩します。取り崩した額は現金に入るため、使い切らなかった分は現金として残ります。
+              どの方法でも、現金が足りない年は不足分だけ追加で取り崩します。取り崩したお金は現金に入るので、使い切らなければそのまま残ります。
             </p>
           </div>
         </>

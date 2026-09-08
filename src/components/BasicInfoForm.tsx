@@ -14,15 +14,13 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
   return (
     <div>
       <div className="page-head">
-        <h2>まずは今の家計を教えてください</h2>
-        <p>
-          わかる範囲の概算で構いません。あとから何度でも変更できます。金額はすべて「万円」単位です。
-        </p>
+        <h2>いまの家計を教えてください</h2>
+        <p>おおよその金額で構いません。あとから何度でも直せます。金額の単位はすべて「万円」です。</p>
       </div>
 
       <section className="card">
         <div className="card-title">家族構成</div>
-        <p className="card-note">シミュレーションは95歳まで、1年きざみで計算します。</p>
+        <p className="card-note">95歳まで、1年きざみで計算します。</p>
         <div className="grid">
           <NumberField
             label="あなたの年齢"
@@ -96,7 +94,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
               + 子どもを追加
             </button>
             {value.children.length === 0 && (
-              <span className="field-desc">まだお子さんがいない場合はそのままで大丈夫です。</span>
+              <span className="field-desc">いない場合はそのままで構いません。</span>
             )}
           </div>
         </div>
@@ -104,7 +102,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
 
       <section className="card">
         <div className="card-title">収入</div>
-        <p className="card-note">税・社会保険料を引く前の額面（源泉徴収票の支払金額）を入れてください。</p>
+        <p className="card-note">税や社会保険料を引く前の額面（源泉徴収票の「支払金額」）です。</p>
         <div className="grid">
           <NumberField
             label="あなたの年収"
@@ -129,7 +127,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
       <section className="card">
         <div className="card-title">支出</div>
         <p className="card-note">
-          生活費は大人（本人・配偶者）の分だけを入れてください。住居費・教育費・お子さんの養育費は別々に計算します。
+          大人（本人と配偶者）の分だけを入れてください。住居費・教育費・お子さんの養育費は別に計算します。
         </p>
         <div className="grid">
           <ToggleField
@@ -156,7 +154,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             step={0.5}
             desc={
               value.homeType === 'family'
-                ? '入れていなければ 0。将来の引越しは質問で設定します'
+                ? '入れていなければ 0。将来の引越しは質問のほうで設定します'
                 : value.homeType === 'owned'
                   ? '維持費は下の欄で別に入力します'
                   : '管理費を含めた月額'
@@ -204,7 +202,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
       <section className="card">
         <div className="card-title">資産（現金と投資を分けて計算します）</div>
         <p className="card-note">
-          現金には預金金利、投資資産には想定利回りをそれぞれ適用します。毎年の余剰資金から積立額を投資に振り替え、現金が足りなくなった年は投資を取り崩して補う計算です。
+          現金には預金金利、投資には想定利回りを別々に当てます。毎年の余りから積立額を投資へ移し、現金が足りない年は投資を取り崩して補います。
         </p>
         <div className="grid">
           <NumberField
@@ -230,7 +228,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             onChange={(v) => set('monthlyInvestment', v)}
             step={0.5}
             max={100}
-            desc="現金から投資へ回す額。余剰が足りない年は自動的に減額されます"
+            desc="現金から投資へ回す額。余りが足りない年は自動で減ります"
           />
           <NumberField
             label="預金金利"
@@ -257,7 +255,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             onChange={(v) => set('idecoMonthly', v)}
             step={0.1}
             max={10}
-            desc="自分で出す掛金。全額が所得控除になり、60歳まで引き出せません（会社員の上限は月2.0〜2.3万円）"
+            desc="自分で出す掛金。全額が所得控除になります。60歳まで引き出せません（会社員の上限は月2.0〜2.3万円）"
           />
           <NumberField
             label="iDeCo・企業型DCの残高"
@@ -265,7 +263,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             value={value.idecoBalance}
             onChange={(v) => set('idecoBalance', v)}
             step={10}
-            desc="いまの積立残高。60歳で投資資産に合流します"
+            desc="いまの残高。60歳で投資資産に合流します"
           />
         </div>
       </section>
@@ -288,7 +286,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             onChange={(v) => set('inflationRate', v)}
             step={0.5}
             max={10}
-            desc="生活費・教育費・家賃・大型出費に反映します。0 なら物価上昇を見込みません（日本銀行の目標は2%）"
+            desc="生活費・教育費・家賃・大型出費に反映します。0 なら物価は上がらない前提（日本銀行の目標は2%）"
           />
           <NumberField
             label="退職年齢"
@@ -312,7 +310,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             onChange={(v) => set('pensionMonthly', v)}
             step={1}
             max={60}
-            desc="世帯合計。会社員夫婦なら22万円前後が目安"
+            desc="世帯の合計。会社員夫婦のモデル年金は月23万円ほど"
           />
         </div>
       </details>
