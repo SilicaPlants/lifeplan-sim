@@ -643,6 +643,8 @@ button {
 .chart-wrap {
   position: relative;
   width: 100%;
+  /* SVG が親を押し広げると、画面を狭めても測定幅が縮まなくなるため閉じ込める */
+  overflow: hidden;
 }
 
 .chart-tooltip {

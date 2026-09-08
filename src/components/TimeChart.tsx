@@ -45,7 +45,10 @@ function niceTicks(min: number, max: number, count = 5) {
   return { ticks, niceMin, niceMax };
 }
 
-const PAD = { top: 26, right: 18, bottom: 34, left: 58 };
+/** 画面が狭いときは余白を詰め、X軸ラベルを2行に分ける */
+const PAD_WIDE = { top: 26, right: 18, bottom: 34, left: 58 };
+const PAD_NARROW = { top: 24, right: 12, bottom: 48, left: 42 };
+const COMPACT_WIDTH = 480;
 
 export function TimeChart({
   rows,
@@ -66,6 +69,8 @@ export function TimeChart({
   const width = useElementWidth(wrapRef);
   const [focused, setFocused] = useState(false);
 
+  const compact = width < COMPACT_WIDTH;
+  const PAD = compact ? PAD_NARROW : PAD_WIDE;
   const innerW = Math.max(120, width - PAD.left - PAD.right);
   const innerH = height - PAD.top - PAD.bottom;
   const n = rows.length;
@@ -90,7 +95,9 @@ export function TimeChart({
   }, [rows, series, innerW, innerH, n]);
 
   const xTickIndexes = useMemo(() => {
-    const target = Math.max(4, Math.min(8, Math.floor(innerW / 110)));
+    // ラベルの実寸（狭い画面は2行なので細い）から、置ける本数を決める
+    const labelWidth = compact ? 40 : 88;
+    const target = Math.max(2, Math.min(8, Math.floor(innerW / labelWidth)));
     const stepYears = Math.max(1, Math.ceil((n - 1) / target / 5) * 5);
     const out: number[] = [];
     for (let t = 0; t < n; t += stepYears) out.push(t);
@@ -100,7 +107,7 @@ export function TimeChart({
       out.push(n - 1);
     }
     return out;
-  }, [n, innerW]);
+  }, [n, innerW, compact]);
 
   const paths = useMemo(
     () =>
@@ -144,7 +151,7 @@ export function TimeChart({
       if (r.events.length === 0) return;
       const label = r.events[0];
       const x = scaleX(r.t);
-      const w = label.length * 10 + 16;
+      const w = label.length * (compact ? 9 : 10) + 16;
       const lane = laneRight.findIndex((right) => x - w / 2 > right);
       // どの段にも入らないほど密集している年はラベルを省く（値は表とツールチップで確認できる）
       if (lane === -1) return;
@@ -152,7 +159,7 @@ export function TimeChart({
       marks.push({ t: r.t, x, label, row: lane });
     });
     return marks;
-  }, [rows, scaleX, showEvents]);
+  }, [rows, scaleX, showEvents, compact]);
 
   const activeT = hoverT !== null && hoverT >= 0 && hoverT < n ? hoverT : null;
   const active = activeT !== null ? rows[activeT] : null;
@@ -262,34 +269,41 @@ export function TimeChart({
               strokeWidth={1}
             />
             <text
-              x={PAD.left - 10}
+              x={PAD.left - (compact ? 6 : 10)}
               y={scaleY(v)}
               textAnchor="end"
               dominantBaseline="middle"
-              fontSize={11}
+              fontSize={compact ? 10 : 11}
               fill="var(--text-muted)"
             >
               {axisLabel(v, useOku)}
             </text>
           </g>
         ))}
-        <text x={4} y={PAD.top - 12} fontSize={11} fill="var(--text-muted)">
+        <text x={2} y={PAD.top - 10} fontSize={compact ? 10 : 11} fill="var(--text-muted)">
           {useOku ? '億円' : '万円'}
         </text>
 
         {/* X 軸 */}
-        {xTickIndexes.map((t) => (
-          <text
-            key={t}
-            x={scaleX(t)}
-            y={height - 12}
-            textAnchor={t === 0 ? 'start' : t === n - 1 ? 'end' : 'middle'}
-            fontSize={11}
-            fill="var(--text-muted)"
-          >
-            {rows[t].year}年 · {rows[t].age}歳
-          </text>
-        ))}
+        {xTickIndexes.map((t) => {
+          const anchor = t === 0 ? 'start' : t === n - 1 ? 'end' : 'middle';
+          const x = scaleX(t);
+          if (compact) {
+            return (
+              <text key={t} x={x} y={height - 28} textAnchor={anchor} fontSize={10} fill="var(--text-muted)">
+                <tspan x={x}>{rows[t].year}</tspan>
+                <tspan x={x} dy={13}>
+                  {rows[t].age}歳
+                </tspan>
+              </text>
+            );
+          }
+          return (
+            <text key={t} x={x} y={height - 12} textAnchor={anchor} fontSize={11} fill="var(--text-muted)">
+              {rows[t].year}年 · {rows[t].age}歳
+            </text>
+          );
+        })}
 
         {/* 面積 */}
         {paths
@@ -347,7 +361,7 @@ export function TimeChart({
               x={m.x}
               y={PAD.top - 4 + m.row * 13}
               textAnchor="middle"
-              fontSize={10}
+              fontSize={compact ? 9 : 10}
               fill="var(--text-muted)"
             >
               {m.label}
@@ -404,7 +418,7 @@ export function TimeChart({
             x={scaleX(rows[n - 1].t)}
             y={scaleY(series[0].value(rows[n - 1]) as number) - 12}
             textAnchor="end"
-            fontSize={12}
+            fontSize={compact ? 11 : 12}
             fontWeight={700}
             fill="var(--text-primary)"
           >

@@ -6,12 +6,16 @@ export function useElementWidth(ref: RefObject<HTMLElement | null>, fallback = 7
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    const update = () => setWidth(el.clientWidth || fallback);
+    const update = () => setWidth(el?.clientWidth || fallback);
     update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
+    const ro = el ? new ResizeObserver(update) : null;
+    if (el && ro) ro.observe(el);
+    // 画面の回転やウィンドウ幅の変化も拾う（ResizeObserver が働かない場合の保険）
+    window.addEventListener('resize', update);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', update);
+    };
   }, [ref, fallback]);
 
   return width;
