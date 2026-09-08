@@ -89,9 +89,13 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
     return { amount: last.newIncome * Math.pow(1 + raise, t - last.yearsLater), taxFree: false };
   };
 
-  // 住宅ローン
+  // 住宅ローン。物件価格・頭金は「いまの相場」として入力するため、
+  // 購入年までの物価上昇を掛けて名目額に直す
+  const purchasePriceLevel = answers.housing.planned
+    ? Math.pow(1 + inflation, answers.housing.yearsLater)
+    : 1;
   const loanPrincipal = answers.housing.planned
-    ? Math.max(0, answers.housing.price - answers.housing.downPayment)
+    ? Math.max(0, answers.housing.price - answers.housing.downPayment) * purchasePriceLevel
     : 0;
   const loanPayment = annualLoanPayment(
     loanPrincipal,
@@ -184,7 +188,9 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       housingCost =
         (paying ? loanPayment : 0) + answers.housing.price * HOME_UPKEEP_RATE * priceLevel;
       if (sincePurchase === 0) {
-        const upfront = answers.housing.downPayment + answers.housing.price * PURCHASE_FEE_RATE;
+        const upfront =
+          (answers.housing.downPayment + answers.housing.price * PURCHASE_FEE_RATE) *
+          purchasePriceLevel;
         lumpExpense += upfront;
         if (answers.housing.fundedBy === 'investment') investmentFunded += upfront;
         events.push('住宅購入');

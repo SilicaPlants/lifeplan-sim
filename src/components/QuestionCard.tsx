@@ -263,6 +263,13 @@ export function QuestionCard({
   const changedCare = CARE_FIELDS.filter((f) => careCosts[f.key] !== defaultCareCosts[f.key]);
 
   const educationCosts = answers.children.educationCosts ?? defaultEducationCosts;
+  // 物件価格・頭金は「いまの相場」で入力するため、購入年までの物価上昇を掛けて名目額にする
+  const purchasePriceLevel = Math.pow(
+    1 + (info.inflationRate ?? 0) / 100,
+    answers.housing.yearsLater,
+  );
+  const loanPrincipalNominal =
+    Math.max(0, answers.housing.price - answers.housing.downPayment) * purchasePriceLevel;
   const retirement = answers.retirement ?? defaultAnswers.retirement;
   const eduTotal = educationTotal(eduPath, finalStage, educationCosts, graduateYears);
   const changedEdu = (['public', 'private'] as const).flatMap((kind) =>
@@ -1017,6 +1024,13 @@ export function QuestionCard({
                   value={answers.housing.price}
                   onChange={(v) => patch('housing', { price: v })}
                   step={100}
+                  desc={
+                    purchasePriceLevel > 1
+                      ? `いまの相場で入力してください。購入時は約${yen(
+                          answers.housing.price * purchasePriceLevel,
+                        )}になる計算です（物価上昇${info.inflationRate}%）`
+                      : 'いまの相場で入力してください'
+                  }
                 />
                 <NumberField
                   label="頭金"
@@ -1024,7 +1038,9 @@ export function QuestionCard({
                   value={answers.housing.downPayment}
                   onChange={(v) => patch('housing', { downPayment: v })}
                   step={50}
-                  desc={`諸費用として別途 ${yen(answers.housing.price * 0.07)} を計上します`}
+                  desc={`諸費用として別途 ${yen(
+                    answers.housing.price * 0.07 * purchasePriceLevel,
+                  )} を計上します`}
                 />
                 <NumberField
                   label="返済期間"
@@ -1093,21 +1109,17 @@ export function QuestionCard({
                 </div>
               )}
               <p className="field-desc" style={{ marginTop: 14 }}>
-                借入額{' '}
-                <strong>
-                  {yen(Math.max(0, answers.housing.price - answers.housing.downPayment))}
-                </strong>{' '}
-                → 毎月の返済は約{' '}
+                借入額 <strong>{yen(loanPrincipalNominal)}</strong> → 毎月の返済は約{' '}
                 <strong>
                   {yen(
                     annualLoanPayment(
-                      Math.max(0, answers.housing.price - answers.housing.downPayment),
+                      loanPrincipalNominal,
                       answers.housing.loanYears,
                       answers.housing.loanRate,
                     ) / 12,
                   )}
                 </strong>
-                （現在の家賃：{yen(info.rent)}/月）
+                （現在の住居費：{yen(info.rent)}/月）
               </p>
             </div>
           )}

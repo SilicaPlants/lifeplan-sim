@@ -361,7 +361,10 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
   const moveEnd = I.currentRow - 1;
   I.input('buying', '住宅購入の予定', answers.housing.planned ? '有' : '無', { list: ['有', '無'] });
   I.input('buyYear', '購入する年', startYear + answers.housing.yearsLater);
-  I.input('price', '物件価格', answers.housing.price, { fmt: MONEY });
+  I.input('price', '物件価格', answers.housing.price, {
+    fmt: MONEY,
+    note: 'いまの相場で入力してください（購入年までの物価上昇を反映します）',
+  });
   I.input('downPayment', '頭金', answers.housing.downPayment, { fmt: MONEY });
   I.input('loanRate', '借入金利', answers.housing.loanRate / 100, { fmt: RATE });
   I.input('loanYears', '返済期間', answers.housing.loanYears, { note: '年' });
@@ -373,7 +376,12 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     (answers.housing.fundedBy ?? 'cash') === 'investment' ? '投資' : '現金',
     { list: ['現金', '投資'], note: '「投資」を選ぶとその年に投資資産を取り崩します' },
   );
-  I.formula('loanPrincipal', '借入額（自動計算）', `${I.ref.price}-${I.ref.downPayment}`);
+  I.formula(
+    'loanPrincipal',
+    '借入額（自動計算）',
+    `(${I.ref.price}-${I.ref.downPayment})*(1+${I.ref.inflation})^(${I.ref.buyYear}-${I.ref.startYear})`,
+    '物件価格・頭金は「いまの相場」として、購入年までの物価上昇を反映します',
+  );
   I.formula(
     'loanMonthly',
     '月返済額（自動計算）',
@@ -909,7 +917,7 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     );
     put(
       'lumpExpense',
-      `IF(AND(${R.buying}="有",${y}=${R.buyYear}),${R.downPayment}+${R.price}*${R.feeRate},0)+` +
+      `IF(AND(${R.buying}="有",${y}=${R.buyYear}),(${R.downPayment}+${R.price}*${R.feeRate})*${price},0)+` +
         `IF(${owned},0,SUMPRODUCT((${moveYearRange}=${y})*${moveRentRange}*${moveMonthsRange})*${price})`,
     );
     // 大型出費：1 回だけの支出はその年に、繰り返しの支出は間隔ごとに計上する。
@@ -922,7 +930,7 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     put(
       'investmentFunded',
       `SUMPRODUCT(${bigHit}*(${bigFunding}="投資")*${bigAmount})*${price}+` +
-        `IF(AND(${R.buying}="有",${y}=${R.buyYear},${R.housingFunding}="投資"),${R.downPayment}+${R.price}*${R.feeRate},0)`,
+        `IF(AND(${R.buying}="有",${y}=${R.buyYear},${R.housingFunding}="投資"),(${R.downPayment}+${R.price}*${R.feeRate})*${price},0)`,
     );
     put(
       'expense',
