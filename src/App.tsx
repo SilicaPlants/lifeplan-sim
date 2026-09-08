@@ -6,7 +6,7 @@ import { PlanManager } from './components/PlanManager';
 import { Result } from './components/Result';
 import { defaultAnswers, defaultBasicInfo } from './lib/defaults';
 import { activeSteps } from './lib/flow';
-import { parseAnswers, parseInfo, type SavedPlan } from './lib/storage';
+import { diffPlan, parseAnswers, parseInfo, type SavedPlan } from './lib/storage';
 import type { BasicInfo, PlanAnswers } from './lib/types';
 
 type Phase = 'basic' | 'flow' | 'result';
@@ -39,6 +39,12 @@ export default function App() {
   const [flowIndex, setFlowIndex] = useState(0);
   const [managerOpen, setManagerOpen] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<{ id: string; name: string } | null>(null);
+  // 保存（または読み込み）した時点の内容。いまの条件と比べて変更点を出す
+  const [savedSnapshot, setSavedSnapshot] = useState<{
+    info: BasicInfo;
+    answers: PlanAnswers;
+  } | null>(null);
+  const planDiffs = savedSnapshot ? diffPlan(savedSnapshot, { info, answers }) : [];
 
   useEffect(() => {
     try {
@@ -80,8 +86,16 @@ export default function App() {
           type="button"
           className="btn btn-ghost btn-sm header-save"
           onClick={() => setManagerOpen(true)}
+          title={
+            currentPlan && planDiffs.length > 0
+              ? `保存した内容から${planDiffs.length}項目を変更しています`
+              : undefined
+          }
         >
           {currentPlan ? `保存：${currentPlan.name}` : 'プランを保存'}
+          {currentPlan && planDiffs.length > 0 && (
+            <span className="unsaved-badge">変更 {planDiffs.length}</span>
+          )}
         </button>
         <nav className="steps" aria-label="進行状況">
           {headerSteps.map((s, i) => (
@@ -143,9 +157,11 @@ export default function App() {
             answers={answers}
             onSave={() => setManagerOpen(true)}
             currentPlanId={currentPlan?.id ?? null}
+            planDiffCount={planDiffs.length}
             onLoadPlan={(plan) => {
               setInfo(plan.info);
               setAnswers(plan.answers);
+              setSavedSnapshot({ info: plan.info, answers: plan.answers });
               setCurrentPlan({ id: plan.id, name: plan.name });
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
@@ -158,6 +174,7 @@ export default function App() {
               setInfo(defaultBasicInfo);
               setAnswers(defaultAnswers);
               setCurrentPlan(null);
+              setSavedSnapshot(null);
               setFlowIndex(0);
               setPhase('basic');
             }}
@@ -174,12 +191,15 @@ export default function App() {
         onLoad={(plan: SavedPlan) => {
           setInfo(plan.info);
           setAnswers(plan.answers);
+          setSavedSnapshot({ info: plan.info, answers: plan.answers });
           setFlowIndex(0);
           setPhase('result');
         }}
-        onCurrentPlanChange={(id, name) =>
-          setCurrentPlan(id ? { id, name: name ?? currentPlan?.name ?? '' } : null)
-        }
+        onCurrentPlanChange={(id, name, snapshot) => {
+          setCurrentPlan(id ? { id, name: name ?? currentPlan?.name ?? '' } : null);
+          setSavedSnapshot(id ? (snapshot ?? { info, answers }) : null);
+        }}
+        diffs={planDiffs}
       />
     </div>
   );

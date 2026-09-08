@@ -367,3 +367,133 @@ export async function downloadJson(data: unknown, filename: string): Promise<Sav
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   return saveFile(blob, filename);
 }
+
+/* ------------------------------------------------------------------ *
+ * 保存した内容と、いまの条件の差分
+ * ------------------------------------------------------------------ */
+
+export interface PlanDiff {
+  label: string;
+  before: string;
+  after: string;
+}
+
+const HOME_TYPE_LABEL: Record<string, string> = {
+  family: '実家',
+  rent: '賃貸',
+  owned: '持ち家',
+};
+
+const FINAL_STAGE_LABEL: Record<string, string> = {
+  highSchool: '高校卒',
+  university: '大学卒',
+  graduate: '大学院卒',
+};
+
+const STRATEGY_LABEL: Record<string, string> = {
+  asNeeded: '必要な分だけ',
+  fixedAmount: '毎年決まった額',
+  fixedRate: '毎年決まった率',
+  cashOut: '全額を現金化',
+};
+
+const SCHOOL_LABEL: Record<string, string> = { public: '公立', private: '私立' };
+
+/** 「保存したときの条件」と「いまの条件」を並べて、変わった項目だけ返す */
+export function diffPlan(
+  saved: { info: BasicInfo; answers: PlanAnswers },
+  current: { info: BasicInfo; answers: PlanAnswers },
+): PlanDiff[] {
+  const diffs: PlanDiff[] = [];
+  const push = (label: string, before: unknown, after: unknown) => {
+    if (String(before) === String(after)) return;
+    diffs.push({ label, before: String(before), after: String(after) });
+  };
+
+  const a = saved.info;
+  const b = current.info;
+  const man = (v: number) => `${v}万円`;
+  const pct = (v: number) => `${v}%`;
+
+  push('あなたの年齢', `${a.age}歳`, `${b.age}歳`);
+  push('配偶者', a.hasSpouse ? 'いる' : 'いない', b.hasSpouse ? 'いる' : 'いない');
+  push('配偶者の年齢', `${a.spouseAge}歳`, `${b.spouseAge}歳`);
+  push('あなたの年収', man(a.income), man(b.income));
+  push('配偶者の年収', man(a.spouseIncome), man(b.spouseIncome));
+  push('現在のお子さん', `${a.children.length}人`, `${b.children.length}人`);
+  push('住まい', HOME_TYPE_LABEL[a.homeType], HOME_TYPE_LABEL[b.homeType]);
+  push('住居費', `月${a.rent}万円`, `月${b.rent}万円`);
+  push('ローンの残り年数', `${a.loanRemainingYears}年`, `${b.loanRemainingYears}年`);
+  push('持ち家の維持費', `月${a.homeUpkeepMonthly}万円`, `月${b.homeUpkeepMonthly}万円`);
+  push('大人の生活費', `月${a.livingCost}万円`, `月${b.livingCost}万円`);
+  push('現金・預金', man(a.cash), man(b.cash));
+  push('投資資産', man(a.investments), man(b.investments));
+  push('預金金利', pct(a.cashRate), pct(b.cashRate));
+  push('投資の想定利回り', pct(a.investmentRate), pct(b.investmentRate));
+  push('毎月の積立額', `月${a.monthlyInvestment}万円`, `月${b.monthlyInvestment}万円`);
+  push('iDeCoの掛金', `月${a.idecoMonthly}万円`, `月${b.idecoMonthly}万円`);
+  push('iDeCoの残高', man(a.idecoBalance), man(b.idecoBalance));
+  push('昇給率', pct(a.raiseRate), pct(b.raiseRate));
+  push('物価上昇率', pct(a.inflationRate), pct(b.inflationRate));
+  push('退職年齢', `${a.retireAge}歳`, `${b.retireAge}歳`);
+  push('退職金', man(a.retirementPay), man(b.retirementPay));
+  push('年金', `月${a.pensionMonthly}万円`, `月${b.pensionMonthly}万円`);
+
+  const x = saved.answers;
+  const y = current.answers;
+
+  push('これから生まれるお子さん', `${x.children.births.length}人`, `${y.children.births.length}人`);
+  if (x.children.births.join(',') !== y.children.births.join(',')) {
+    push(
+      'お子さんの誕生時期',
+      x.children.births.map((v) => `${v}年後`).join('・') || 'なし',
+      y.children.births.map((v) => `${v}年後`).join('・') || 'なし',
+    );
+  }
+  push(
+    '最終学歴',
+    FINAL_STAGE_LABEL[x.children.finalStage],
+    FINAL_STAGE_LABEL[y.children.finalStage],
+  );
+  (Object.keys(x.children.path) as (keyof typeof x.children.path)[]).forEach((key) => {
+    const names: Record<string, string> = {
+      kindergarten: '幼稚園',
+      elementary: '小学校',
+      juniorHigh: '中学校',
+      highSchool: '高校',
+      university: '大学',
+      graduate: '大学院',
+    };
+    push(
+      `進路（${names[key]}）`,
+      SCHOOL_LABEL[x.children.path[key]],
+      SCHOOL_LABEL[y.children.path[key]],
+    );
+  });
+
+  push('住宅購入', x.housing.planned ? 'する' : 'しない', y.housing.planned ? 'する' : 'しない');
+  if (x.housing.planned || y.housing.planned) {
+    push('購入時期', `${x.housing.yearsLater}年後`, `${y.housing.yearsLater}年後`);
+    push('物件価格', man(x.housing.price), man(y.housing.price));
+    push('頭金', man(x.housing.downPayment), man(y.housing.downPayment));
+    push('返済期間', `${x.housing.loanYears}年`, `${y.housing.loanYears}年`);
+    push('借入金利', pct(x.housing.loanRate), pct(y.housing.loanRate));
+    push('住宅ローン控除', x.housing.taxCredit ? '使う' : '使わない', y.housing.taxCredit ? '使う' : '使わない');
+  }
+
+  push('収入の変化', `${x.incomeEvents.length}件`, `${y.incomeEvents.length}件`);
+  push('引越し', `${x.moves.length}件`, `${y.moves.length}件`);
+  push('大型出費', `${x.bigExpenses.length}件`, `${y.bigExpenses.length}件`);
+  push('積立額の変更', `${x.investmentChanges.length}件`, `${y.investmentChanges.length}件`);
+
+  push(
+    '老後の取り崩し方',
+    STRATEGY_LABEL[x.retirement.strategy],
+    STRATEGY_LABEL[y.retirement.strategy],
+  );
+  push('積立をやめる年齢', `${x.retirement.contributionEndAge}歳`, `${y.retirement.contributionEndAge}歳`);
+  push('取り崩しを始める年齢', `${x.retirement.withdrawalStartAge}歳`, `${y.retirement.withdrawalStartAge}歳`);
+  push('取り崩し後の利回り', pct(x.retirement.postReturnRate), pct(y.retirement.postReturnRate));
+
+  return diffs;
+}

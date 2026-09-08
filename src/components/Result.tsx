@@ -18,6 +18,8 @@ interface Props {
   onLoadPlan: (plan: SavedPlan) => void;
   /** いま開いているプランの id（あれば） */
   currentPlanId: string | null;
+  /** 保存した内容から変わっている項目数 */
+  planDiffCount: number;
 }
 
 /** 比較プランに割り当てる色（現在の条件は series-1） */
@@ -38,6 +40,7 @@ export function Result({
   onSave,
   onLoadPlan,
   currentPlanId,
+  planDiffCount,
 }: Props) {
   const [hoverT, setHoverT] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -188,8 +191,12 @@ export function Result({
             <button type="button" className="btn btn-ghost" onClick={onRestart}>
               最初からやり直す
             </button>
-            <button type="button" className="btn btn-ghost" onClick={onSave}>
-              この結果を保存
+            <button
+              type="button"
+              className={`btn btn-ghost${planDiffCount > 0 ? ' has-changes' : ''}`}
+              onClick={onSave}
+            >
+              {planDiffCount > 0 ? `変更を保存（${planDiffCount}件）` : 'この結果を保存'}
             </button>
             <div className="plan-menu-wrap" ref={planMenuRef}>
               <button

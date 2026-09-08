@@ -4,6 +4,7 @@ import { simulate } from '../lib/simulate';
 import {
   buildExport,
   downloadJson,
+  type PlanDiff,
   loadPlans,
   newId,
   parseImport,
@@ -20,7 +21,13 @@ interface Props {
   answers: PlanAnswers;
   currentPlanId: string | null;
   onLoad: (plan: SavedPlan) => void;
-  onCurrentPlanChange: (id: string | null, name?: string) => void;
+  onCurrentPlanChange: (
+    id: string | null,
+    name?: string,
+    snapshot?: { info: BasicInfo; answers: PlanAnswers },
+  ) => void;
+  /** 保存した内容といまの条件の差分 */
+  diffs: PlanDiff[];
 }
 
 function formatDate(iso: string): string {
@@ -49,6 +56,7 @@ export function PlanManager({
   currentPlanId,
   onLoad,
   onCurrentPlanChange,
+  diffs,
 }: Props) {
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [name, setName] = useState('');
@@ -118,7 +126,7 @@ export function PlanManager({
       info,
       answers,
     };
-    onCurrentPlanChange(plan.id, plan.name);
+    onCurrentPlanChange(plan.id, plan.name, { info, answers });
     persist([plan, ...plans], `「${plan.name}」を保存しました。`);
   };
 
@@ -132,7 +140,7 @@ export function PlanManager({
       info,
       answers,
     };
-    onCurrentPlanChange(updated.id, updated.name);
+    onCurrentPlanChange(updated.id, updated.name, { info, answers });
     persist(
       plans.map((p) => (p.id === updated.id ? updated : p)),
       `「${updated.name}」を上書きしました。`,
@@ -235,6 +243,29 @@ export function PlanManager({
                 </button>
               )}
             </div>
+            {currentPlan && (
+              <div className="diff-box">
+                {diffs.length === 0 ? (
+                  <p className="diff-none">「{currentPlan.name}」を保存したときのままです。</p>
+                ) : (
+                  <>
+                    <div className="diff-head">
+                      「{currentPlan.name}」を保存してから変えたところ（{diffs.length}件）
+                    </div>
+                    <ul className="diff-list">
+                      {diffs.map((d) => (
+                        <li key={d.label}>
+                          <span className="diff-label">{d.label}</span>
+                          <span className="diff-before">{d.before}</span>
+                          <span className="diff-arrow">→</span>
+                          <span className="diff-after">{d.after}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
           </section>
 
           {message && <p className="save-message">{message}</p>}
