@@ -100,8 +100,9 @@ export const defaultBasicInfo: BasicInfo = {
   idecoMonthly: 0,
   idecoBalance: 0,
   raiseRate: 1.5,
-  // 日本銀行の物価安定目標は2%。過去の実績が低いことも踏まえ控えめに置く
-  inflationRate: 1.5,
+  // 既定では物価上昇を見込まない（名目のまま試算する）。
+  // 実質的な購買力で見たい場合は 1〜2% を設定する
+  inflationRate: 0,
   retireAge: 65,
   retirementPay: 1200,
   // 厚生労働省のモデル年金（夫婦2人の標準的な年金額）は月23万円前後

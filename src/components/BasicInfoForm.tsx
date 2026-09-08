@@ -288,7 +288,7 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
             onChange={(v) => set('inflationRate', v)}
             step={0.5}
             max={10}
-            desc="生活費・教育費・家賃・大型出費に反映します。日本銀行の目標は2%"
+            desc="生活費・教育費・家賃・大型出費に反映します。0 なら物価上昇を見込みません（日本銀行の目標は2%）"
           />
           <NumberField
             label="退職年齢"
