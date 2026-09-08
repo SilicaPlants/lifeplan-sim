@@ -1016,7 +1016,7 @@ export function QuestionCard({
                   onChange={(v) => patch('housing', { yearsLater: v })}
                   min={0}
                   max={40}
-                  desc={`${info.age + answers.housing.yearsLater}歳のとき`}
+                  desc={whenLabel(answers.housing.yearsLater)}
                 />
                 <NumberField
                   label="物件価格"
@@ -1049,6 +1049,9 @@ export function QuestionCard({
                   onChange={(v) => patch('housing', { loanYears: v })}
                   min={1}
                   max={50}
+                  desc={`完済は ${whenLabel(
+                    answers.housing.yearsLater + answers.housing.loanYears,
+                  )}`}
                 />
                 <NumberField
                   label="借入金利"
