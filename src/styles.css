@@ -1771,3 +1771,113 @@ td.is-negative {
     grid-template-columns: 1fr auto 16px auto;
   }
 }
+
+/* ---------- 条件を動かして試す ---------- */
+
+.whatif {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.whatif-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.whatif-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.whatif-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+  max-width: 46em;
+}
+
+.whatif-delta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--good-bg);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.whatif-delta.is-down {
+  background: var(--critical-bg);
+}
+
+.whatif-delta strong {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--good);
+}
+
+.whatif-delta.is-down strong {
+  color: var(--critical);
+}
+
+.whatif-delta-detail {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.whatif-knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px 22px;
+  margin-top: 16px;
+}
+
+.knob {
+  display: block;
+}
+
+.knob-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.knob-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.knob-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.knob-value em {
+  font-style: normal;
+  font-weight: 600;
+  font-size: 11px;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+
+.knob input[type='range'] {
+  width: 100%;
+  margin: 6px 0 0;
+  accent-color: var(--series-1);
+  cursor: pointer;
+}

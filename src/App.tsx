@@ -158,6 +158,7 @@ export default function App() {
             onSave={() => setManagerOpen(true)}
             currentPlanId={currentPlan?.id ?? null}
             planDiffCount={planDiffs.length}
+            onInfoChange={setInfo}
             onLoadPlan={(plan) => {
               setInfo(plan.info);
               setAnswers(plan.answers);

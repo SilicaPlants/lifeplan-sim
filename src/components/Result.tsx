@@ -7,6 +7,7 @@ import { simulate } from '../lib/simulate';
 import { loadPlans, type SavedPlan } from '../lib/storage';
 import type { BasicInfo, PlanAnswers, YearRow } from '../lib/types';
 import { TimeChart, type ChartSeries } from './TimeChart';
+import { WhatIf } from './WhatIf';
 
 interface Props {
   info: BasicInfo;
@@ -20,6 +21,8 @@ interface Props {
   currentPlanId: string | null;
   /** 保存した内容から変わっている項目数 */
   planDiffCount: number;
+  /** 「条件を動かして試す」で基本情報を書き換える */
+  onInfoChange: (info: BasicInfo) => void;
 }
 
 /** 比較プランに割り当てる色（現在の条件は series-1） */
@@ -41,6 +44,7 @@ export function Result({
   onLoadPlan,
   currentPlanId,
   planDiffCount,
+  onInfoChange,
 }: Props) {
   const [hoverT, setHoverT] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -52,6 +56,24 @@ export function Result({
 
   const result = useMemo(() => simulate(info, answers), [info, answers]);
   const advice = useMemo(() => buildAdvice(info, answers, result), [info, answers, result]);
+
+  // ---- 条件をその場で動かして試す ----
+  // 最初にスライダーを触ったときの条件を控えておき、点線で重ねる／戻せるようにする
+  const [baseline, setBaseline] = useState<BasicInfo | null>(null);
+  const baseResult = useMemo(
+    () => (baseline ? simulate(baseline, answers) : null),
+    [baseline, answers],
+  );
+  const whatIfChanged =
+    baseResult !== null && result.rows.some((r, i) => r.totalAssets !== baseResult.rows[i]?.totalAssets);
+  const handleWhatIf = (next: BasicInfo) => {
+    if (!baseline) setBaseline(info);
+    onInfoChange(next);
+  };
+  const resetWhatIf = () => {
+    if (baseline) onInfoChange(baseline);
+    setBaseline(null);
+  };
 
   // ---- 保存したプランとの比較 ----
   const [plans, setPlans] = useState<SavedPlan[]>([]);
@@ -137,6 +159,21 @@ export function Result({
         value: (r: YearRow) => byYear.get(r.year) ?? null,
       };
     }),
+    // 「条件を動かして試す」で動かす前の線を点線で残す
+    ...(whatIfChanged && baseResult
+      ? [
+          (() => {
+            const byYear = new Map(baseResult.rows.map((r) => [r.year, r.totalAssets]));
+            return {
+              id: 'whatIfBase',
+              label: '動かす前',
+              color: 'var(--text-muted)',
+              dashed: true,
+              value: (r: YearRow) => byYear.get(r.year) ?? null,
+            };
+          })(),
+        ]
+      : []),
   ];
 
   // iDeCo は 60 歳まで引き出せず総資産に数えないので、残高がある年だけ参考として線を出す
@@ -243,6 +280,7 @@ export function Result({
                         className="plan-menu-item"
                         disabled={isCurrent}
                         onClick={() => {
+                          setBaseline(null); // 別のプランを開いたら「動かす前」は無効
                           onLoadPlan(p);
                           setCompareIds((prev) => prev.filter((x) => x !== p.id));
                           setPlanMenuOpen(false);
@@ -358,7 +396,7 @@ export function Result({
           </p>
         )}
 
-        {comparisons.length > 0 && (
+        {(comparisons.length > 0 || whatIfChanged) && (
           <div className="legend">
             {totalSeries.map((s) => (
               <span className="legend-item" key={s.id}>
@@ -387,6 +425,15 @@ export function Result({
           onHoverT={setHoverT}
           ariaLabel="総資産の推移グラフ"
           imageName="総資産の推移"
+        />
+
+        <WhatIf
+          info={info}
+          baseline={whatIfChanged ? baseline : null}
+          onChange={handleWhatIf}
+          onReset={resetWhatIf}
+          baseFinal={baseResult?.final.totalAssets ?? null}
+          currentFinal={result.final.totalAssets}
         />
 
         {comparisons.length > 0 && (
