@@ -139,9 +139,29 @@ export function Result({
     }),
   ];
 
+  // iDeCo は 60 歳で投資へ合流するため、残高がある年だけ線を出す
+  const hasIdeco = result.rows.some((r) => r.ideco > 0);
   const assetSeries: ChartSeries[] = [
     { id: 'cash', label: '現金・預金', color: 'var(--series-1)', value: (r) => r.cash },
     { id: 'investments', label: '投資資産', color: 'var(--series-3)', value: (r) => r.investments },
+    ...(hasIdeco
+      ? [
+          {
+            id: 'ideco',
+            label: 'iDeCo・企業型DC',
+            color: 'var(--series-4)',
+            value: (r: YearRow) => r.ideco,
+          },
+        ]
+      : []),
+    // 上のグラフ（総資産）と同じ線。内訳の合計と一致することが見て取れる
+    {
+      id: 'assetTotal',
+      label: '合計（総資産）',
+      color: 'var(--text-muted)',
+      dashed: true,
+      value: (r) => r.totalAssets,
+    },
   ];
 
   const cashflowSeries: ChartSeries[] = [
@@ -440,7 +460,8 @@ export function Result({
         <p className="card-note">
           現金には預金金利{info.cashRate}%、投資には想定利回り{info.investmentRate}
           %を当てています。毎月{yenFine(info.monthlyInvestment)}
-          を現金から投資へ積み立て、現金が不足する年は投資を取り崩します。
+          を現金から投資へ積み立て、現金が不足する年は投資を取り崩します。破線は
+          {hasIdeco ? '3本' : '2本'}の合計で、上の「総資産の推移」と同じ線です。
         </p>
         <div className="legend">
           {assetSeries.map((s) => (
