@@ -348,7 +348,9 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
 
     cash = nextCash;
     investments = nextInvestments;
-    const totalAssets = cash + investments + ideco;
+    // iDeCo は 60 歳まで引き出せないので、それまでは総資産に数えない
+    // （60 歳になった年に投資資産へ合流し、そこから総資産に入る）
+    const totalAssets = cash + investments;
 
     rows.push({
       t,

@@ -993,7 +993,8 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     );
     put('cash', `${cashAfterContrib}+${A('withdrawal', row)}`);
     put('investments', `${invAfterPlanned}-${A('withdrawal', row)}`);
-    put('total', `${A('cash', row)}+${A('investments', row)}+${A('ideco', row)}`);
+    // iDeCo は 60 歳まで引き出せないので総資産には数えない（合流後は投資資産に含まれる）
+    put('total', `${A('cash', row)}+${A('investments', row)}`);
     put('shortYear', `IF(${A('total', row)}<0,${y},"")`);
 
     const evCell = calcWs.getCell(row, idx.events);
@@ -1164,6 +1165,10 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     ['・積立額は、その年に使える現金の範囲に自動で抑えられます（現金がマイナスなら積立は 0）。', 'p'],
     ['・それでも現金が足りない年は、不足分だけ投資資産を取り崩します（「投資取崩額」列）。', 'p'],
     ['・投資も尽きると総資産がマイナスになり、「資金ショート判定」列に年が表示されます。', 'p'],
+    [
+      '・iDeCo・企業型DCは60歳まで引き出せないため「総資産」に含めず、別列で運用します。60歳の年に投資資産へ合流します。',
+      'p',
+    ],
     ['', 'p'],
     ['■ 計算の前提', 'h2'],
     ['・手取り ＝ 額面 − 社会保険料 − 所得税 − 住民税。給与所得控除と所得税は INPUT の速算表を参照しています。', 'p'],

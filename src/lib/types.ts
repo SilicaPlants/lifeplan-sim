@@ -298,7 +298,7 @@ export interface YearRow {
   idecoContribution: number;
   /** 年末時点の iDeCo 残高（60歳で投資資産へ合流する） */
   ideco: number;
-  /** 年末時点の総資産（現金＋投資） */
+  /** 年末時点の総資産（現金＋投資。60歳まで引き出せない iDeCo は含めない） */
   totalAssets: number;
   /** 同居している子どもの人数 */
   childCount: number;

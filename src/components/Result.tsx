@@ -139,7 +139,7 @@ export function Result({
     }),
   ];
 
-  // iDeCo は 60 歳で投資へ合流するため、残高がある年だけ線を出す
+  // iDeCo は 60 歳まで引き出せず総資産に数えないので、残高がある年だけ参考として線を出す
   const hasIdeco = result.rows.some((r) => r.ideco > 0);
   const assetSeries: ChartSeries[] = [
     { id: 'cash', label: '現金・預金', color: 'var(--series-1)', value: (r) => r.cash },
@@ -154,10 +154,10 @@ export function Result({
           },
         ]
       : []),
-    // 上のグラフ（総資産）と同じ線。内訳の合計と一致することが見て取れる
+    // 上のグラフ（総資産）と同じ線。現金＋投資と一致することが見て取れる
     {
       id: 'assetTotal',
-      label: '合計（総資産）',
+      label: '総資産（現金＋投資）',
       color: 'var(--text-muted)',
       dashed: true,
       value: (r) => r.totalAssets,
@@ -460,8 +460,10 @@ export function Result({
         <p className="card-note">
           現金には預金金利{info.cashRate}%、投資には想定利回り{info.investmentRate}
           %を当てています。毎月{yenFine(info.monthlyInvestment)}
-          を現金から投資へ積み立て、現金が不足する年は投資を取り崩します。破線は
-          {hasIdeco ? '3本' : '2本'}の合計で、上の「総資産の推移」と同じ線です。
+          を現金から投資へ積み立て、現金が不足する年は投資を取り崩します。破線は現金と投資の合計で、上の「総資産の推移」と同じ線です。
+          {hasIdeco
+            ? ' iDeCo・企業型DCは60歳まで引き出せないので、この破線にも総資産にも入れていません（60歳で投資資産へ合流します）。'
+            : ''}
         </p>
         <div className="legend">
           {assetSeries.map((s) => (
@@ -608,7 +610,7 @@ export function Result({
               住宅ローン控除は、年末残高（上限あり）に控除率を掛けた額を、その年の所得税と住民税（課税所得の5%・上限9.75万円）の範囲で戻します。
             </li>
             <li>
-              iDeCo・企業型DCの掛金は全額を所得控除として手取りに反映し、60歳まで別に運用してから投資資産へ合流させます。受け取るときの退職所得控除・公的年金等控除はみていません。
+              iDeCo・企業型DCの掛金は全額を所得控除として手取りに反映します。60歳になるまでは引き出せないため総資産には数えず、別に運用したうえで60歳の年に投資資産へ合流させます。受け取るときの退職所得控除・公的年金等控除はみていません。
             </li>
             <li>
               退職後の生活費は現役期の85%、年金は65歳からの受け取りです。
