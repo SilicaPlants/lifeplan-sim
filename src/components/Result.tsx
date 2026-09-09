@@ -3,6 +3,7 @@ import { buildAdvice } from '../lib/advice';
 import { canSaveFiles } from '../lib/download';
 import { downloadLifePlanExcel } from '../lib/excel';
 import { yen, yenFine } from '../lib/format';
+import type { Scenario } from '../lib/knobs';
 import { simulate } from '../lib/simulate';
 import { loadPlans, type SavedPlan } from '../lib/storage';
 import type { BasicInfo, PlanAnswers, YearRow } from '../lib/types';
@@ -21,8 +22,13 @@ interface Props {
   currentPlanId: string | null;
   /** 保存した内容から変わっている項目数 */
   planDiffCount: number;
-  /** 「条件を動かして試す」で基本情報を書き換える */
-  onInfoChange: (info: BasicInfo) => void;
+  /** 「条件を動かして試す」で条件を書き換える */
+  onScenarioChange: (next: Scenario) => void;
+}
+
+/** 桁が多い金額は文字を少し小さくして 1 行に収める（折り返すとカードの高さが変わる） */
+function statClass(text: string, critical = false): string {
+  return `stat-value${text.length >= 9 ? ' is-long' : ''}${critical ? ' is-critical' : ''}`;
 }
 
 /** 比較プランに割り当てる色（現在の条件は series-1） */
@@ -44,7 +50,7 @@ export function Result({
   onLoadPlan,
   currentPlanId,
   planDiffCount,
-  onInfoChange,
+  onScenarioChange,
 }: Props) {
   const [hoverT, setHoverT] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -58,20 +64,21 @@ export function Result({
   const advice = useMemo(() => buildAdvice(info, answers, result), [info, answers, result]);
 
   // ---- 条件をその場で動かして試す ----
-  // 最初にスライダーを触ったときの条件を控えておき、点線で重ねる／戻せるようにする
-  const [baseline, setBaseline] = useState<BasicInfo | null>(null);
+  // 最初につまみを触ったときの条件を控えておき、点線で重ねる／戻せるようにする
+  const scenario: Scenario = useMemo(() => ({ info, answers }), [info, answers]);
+  const [baseline, setBaseline] = useState<Scenario | null>(null);
   const baseResult = useMemo(
-    () => (baseline ? simulate(baseline, answers) : null),
-    [baseline, answers],
+    () => (baseline ? simulate(baseline.info, baseline.answers) : null),
+    [baseline],
   );
   const whatIfChanged =
     baseResult !== null && result.rows.some((r, i) => r.totalAssets !== baseResult.rows[i]?.totalAssets);
-  const handleWhatIf = (next: BasicInfo) => {
-    if (!baseline) setBaseline(info);
-    onInfoChange(next);
+  const handleWhatIf = (next: Scenario) => {
+    if (!baseline) setBaseline(scenario);
+    onScenarioChange(next);
   };
   const resetWhatIf = () => {
-    if (baseline) onInfoChange(baseline);
+    if (baseline) onScenarioChange(baseline);
     setBaseline(null);
   };
 
@@ -325,7 +332,7 @@ export function Result({
       <div className="hero-row">
         <div className="stat">
           <div className="stat-label">95歳時点の総資産</div>
-          <div className={`stat-value${final.totalAssets < 0 ? ' is-critical' : ''}`}>
+          <div className={statClass(yen(final.totalAssets), final.totalAssets < 0)}>
             {yen(final.totalAssets)}
           </div>
           <div className="stat-sub">
@@ -334,12 +341,14 @@ export function Result({
         </div>
         <div className="stat">
           <div className="stat-label">退職時（{info.retireAge}歳）の総資産</div>
-          <div className="stat-value">{atRetirement ? yen(atRetirement.totalAssets) : '—'}</div>
+          <div className={statClass(atRetirement ? yen(atRetirement.totalAssets) : '—')}>
+            {atRetirement ? yen(atRetirement.totalAssets) : '—'}
+          </div>
           <div className="stat-sub">退職金 {yen(info.retirementPay)} を含む</div>
         </div>
         <div className="stat">
           <div className="stat-label">総資産が最も少なくなる時期</div>
-          <div className={`stat-value${minRow.totalAssets < 0 ? ' is-critical' : ''}`}>
+          <div className={statClass(yen(minRow.totalAssets), minRow.totalAssets < 0)}>
             {yen(minRow.totalAssets)}
           </div>
           <div className="stat-sub">
@@ -348,7 +357,7 @@ export function Result({
         </div>
         <div className="stat">
           <div className="stat-label">生涯の運用益</div>
-          <div className="stat-value">{yen(totalGain)}</div>
+          <div className={statClass(yen(totalGain))}>{yen(totalGain)}</div>
           <div className="stat-sub">
             投資利回り{info.investmentRate}% ／ 預金利息は {yen(totalInterest)}
           </div>
@@ -396,24 +405,18 @@ export function Result({
           </p>
         )}
 
-        {(comparisons.length > 0 || whatIfChanged) && (
-          <div className="legend">
-            {totalSeries.map((s) => (
-              <span className="legend-item" key={s.id}>
-                <span
-                  className="tt-line"
-                  style={{
-                    background: s.color,
-                    width: 16,
-                    height: 2,
-                    opacity: s.dashed ? 0.85 : 1,
-                  }}
-                />
-                {s.label}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* 出したり消したりするとグラフの位置がずれるので、いつも置いておく */}
+        <div className="legend">
+          {totalSeries.map((s) => (
+            <span className="legend-item" key={s.id}>
+              <span
+                className="tt-line"
+                style={{ background: s.color, width: 16, height: 2, opacity: s.dashed ? 0.85 : 1 }}
+              />
+              {s.label}
+            </span>
+          ))}
+        </div>
 
         <TimeChart
           rows={result.rows}
@@ -428,8 +431,8 @@ export function Result({
         />
 
         <WhatIf
-          info={info}
-          baseline={whatIfChanged ? baseline : null}
+          scenario={scenario}
+          baseline={baseline}
           onChange={handleWhatIf}
           onReset={resetWhatIf}
           baseFinal={baseResult?.final.totalAssets ?? null}

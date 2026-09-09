@@ -1,69 +1,149 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { yen } from '../lib/format';
-import type { BasicInfo } from '../lib/types';
-
-/** スライダーで動かせる項目（BasicInfo のうち数値のもの） */
-type KnobKey =
-  | 'investmentRate'
-  | 'monthlyInvestment'
-  | 'inflationRate'
-  | 'raiseRate'
-  | 'retireAge'
-  | 'livingCost'
-  | 'income'
-  | 'spouseIncome';
-
-interface Knob {
-  key: KnobKey;
-  label: string;
-  unit: string;
-  min: number;
-  max: number;
-  step: number;
-  /** 表示する小数桁 */
-  digits: number;
-  /** 配偶者がいないときは出さない、などの出し分け */
-  show?: (info: BasicInfo) => boolean;
-}
-
-const KNOBS: Knob[] = [
-  { key: 'investmentRate', label: '投資の想定利回り', unit: '%', min: 0, max: 10, step: 0.1, digits: 1 },
-  { key: 'monthlyInvestment', label: '毎月の積立額', unit: '万円', min: 0, max: 30, step: 0.5, digits: 1 },
-  { key: 'income', label: '本人の年収', unit: '万円', min: 0, max: 2000, step: 10, digits: 0 },
-  {
-    key: 'spouseIncome',
-    label: '配偶者の年収',
-    unit: '万円',
-    min: 0,
-    max: 2000,
-    step: 10,
-    digits: 0,
-    show: (info) => info.hasSpouse,
-  },
-  { key: 'livingCost', label: '生活費（月）', unit: '万円', min: 5, max: 60, step: 0.5, digits: 1 },
-  { key: 'retireAge', label: '退職する年齢', unit: '歳', min: 55, max: 75, step: 1, digits: 0 },
-  { key: 'raiseRate', label: '昇給率', unit: '%', min: 0, max: 5, step: 0.1, digits: 1 },
-  { key: 'inflationRate', label: '物価上昇率', unit: '%', min: 0, max: 5, step: 0.1, digits: 1 },
-];
+import { buildKnobs, loadKnobIds, saveKnobIds, type Knob, type Scenario } from '../lib/knobs';
 
 function show(n: number, digits: number): string {
   return n.toLocaleString('ja-JP', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+/** 0.1 刻みなどの浮動小数の誤差を落とす */
+function tidy(v: number, step: number): number {
+  return Number((Math.round(v / step) * step).toFixed(4));
+}
+
+interface RowProps {
+  knob: Knob;
+  scenario: Scenario;
+  baseline: Scenario | null;
+  onChange: (next: Scenario) => void;
+}
+
+function KnobRow({ knob, scenario, baseline, onChange }: RowProps) {
+  const value = knob.get(scenario);
+  const before = baseline ? knob.get(baseline) : value;
+  const diff = value - before;
+  // 数値を打っている途中は文字列のまま持ち、確定したときに反映する
+  const [typing, setTyping] = useState<string | null>(null);
+
+  const commit = (v: number) => {
+    if (!Number.isFinite(v)) return;
+    onChange(knob.set(scenario, tidy(Math.max(knob.min === 0 ? 0 : -Infinity, v), knob.step)));
+  };
+
+  // スライダーの目盛りは、いまの値や動かす前の値が外にあればそこまで広げる
+  const min = Math.min(knob.min, value, before);
+  const max = Math.max(knob.max, value, before);
+
+  return (
+    <div className="knob">
+      <div className="knob-head">
+        <span className="knob-label">{knob.label}</span>
+        {/* 差がないときも高さを保つため、中身だけ空にして場所は残す */}
+        <span className="knob-diff">
+          {diff === 0 ? '' : `${diff > 0 ? '+' : '−'}${show(Math.abs(diff), knob.digits)}`}
+        </span>
+      </div>
+      <div className="knob-input-row">
+        <button
+          type="button"
+          className="knob-step"
+          aria-label={`${knob.label}を減らす`}
+          onClick={() => commit(value - knob.step)}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          className="knob-number"
+          inputMode="decimal"
+          step={knob.step}
+          value={typing ?? show(value, knob.digits).replace(/,/g, '')}
+          aria-label={knob.label}
+          onChange={(e) => {
+            setTyping(e.target.value);
+            const n = Number(e.target.value);
+            if (e.target.value !== '' && Number.isFinite(n)) commit(n);
+          }}
+          onBlur={() => setTyping(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+        />
+        <button
+          type="button"
+          className="knob-step"
+          aria-label={`${knob.label}を増やす`}
+          onClick={() => commit(value + knob.step)}
+        >
+          ＋
+        </button>
+        <span className="knob-unit">{knob.unit}</span>
+      </div>
+      <input
+        type="range"
+        className="knob-range"
+        min={min}
+        max={max}
+        step={knob.step}
+        value={value}
+        aria-label={`${knob.label}のスライダー`}
+        onChange={(e) => commit(Number(e.target.value))}
+      />
+    </div>
+  );
+}
+
 interface Props {
-  info: BasicInfo;
-  /** 動かす前の値。まだ触っていなければ null */
-  baseline: BasicInfo | null;
-  onChange: (next: BasicInfo) => void;
+  scenario: Scenario;
+  /** 動かす前の条件。まだ触っていなければ null */
+  baseline: Scenario | null;
+  onChange: (next: Scenario) => void;
   onReset: () => void;
   /** 動かす前と後の 95 歳時点の総資産 */
   baseFinal: number | null;
   currentFinal: number;
 }
 
-export function WhatIf({ info, baseline, onChange, onReset, baseFinal, currentFinal }: Props) {
-  const knobs = KNOBS.filter((k) => k.show?.(info) ?? true);
-  const changed = baseline !== null && knobs.some((k) => info[k.key] !== baseline[k.key]);
+export function WhatIf({ scenario, baseline, onChange, onReset, baseFinal, currentFinal }: Props) {
+  const all = useMemo(() => buildKnobs(scenario), [scenario]);
+  const [ids, setIds] = useState<string[]>(() => loadKnobIds());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!pickerRef.current?.contains(e.target as Node)) setPickerOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPickerOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [pickerOpen]);
+
+  // 選んだ順ではなく、候補の並び順で出す
+  const shown = all.filter((k) => ids.includes(k.id));
+  const changed = baseline !== null;
   const delta = baseFinal === null ? 0 : currentFinal - baseFinal;
+
+  const toggle = (id: string) => {
+    const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+    setIds(next);
+    saveKnobIds(next);
+  };
+
+  // 選ぶ画面は見出しごとにまとめる
+  const groups: { name: string; knobs: Knob[] }[] = [];
+  all.forEach((k) => {
+    const g = groups.find((x) => x.name === k.group);
+    if (g) g.knobs.push(k);
+    else groups.push({ name: k.group, knobs: [k] });
+  });
 
   return (
     <div className="whatif">
@@ -71,71 +151,70 @@ export function WhatIf({ info, baseline, onChange, onReset, baseFinal, currentFi
         <div>
           <div className="whatif-title">条件を動かして試す</div>
           <p className="whatif-note">
-            動かすとグラフがその場で引き直されます。動かす前の線は点線で残るので、差がそのまま見えます。
+            スライダー・数値の入力・＋−のどれでも動かせます。動かす前の線は点線で残ります。
           </p>
         </div>
-        {changed && (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onReset}>
+        <div className="whatif-actions">
+          <div className="picker-wrap" ref={pickerRef}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              aria-expanded={pickerOpen}
+              onClick={() => setPickerOpen((v) => !v)}
+            >
+              項目を選ぶ（{shown.length}）
+            </button>
+            {pickerOpen && (
+              <div className="picker">
+                {groups.map((g) => (
+                  <div className="picker-group" key={g.name}>
+                    <div className="picker-group-name">{g.name}</div>
+                    {g.knobs.map((k) => (
+                      <label className="picker-item" key={k.id}>
+                        <input type="checkbox" checked={ids.includes(k.id)} onChange={() => toggle(k.id)} />
+                        <span>{k.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm" disabled={!changed} onClick={onReset}>
             動かす前に戻す
           </button>
+        </div>
+      </div>
+
+      {/* 出したり消したりすると下のつまみがずれるので、行はいつも置いておく */}
+      <div className={`whatif-delta${!changed ? ' is-idle' : delta < 0 ? ' is-down' : ''}`}>
+        {changed ? (
+          <>
+            <span>95歳時点の総資産</span>
+            <strong>
+              {delta >= 0 ? '+' : '−'}
+              {yen(Math.abs(delta))}
+            </strong>
+            <span className="whatif-delta-detail">
+              {yen(baseFinal ?? 0)} → {yen(currentFinal)}
+            </span>
+          </>
+        ) : (
+          <span>動かすと、95歳時点の総資産がいくら変わるかをここに出します。</span>
         )}
       </div>
 
-      {changed && (
-        <div className={`whatif-delta${delta < 0 ? ' is-down' : ''}`}>
-          <span>95歳時点の総資産</span>
-          <strong>
-            {delta >= 0 ? '+' : '−'}
-            {yen(Math.abs(delta))}
-          </strong>
-          <span className="whatif-delta-detail">
-            {yen(baseFinal ?? 0)} → {yen(currentFinal)}
-          </span>
+      {shown.length === 0 ? (
+        <p className="field-desc" style={{ marginTop: 16 }}>
+          「項目を選ぶ」から、動かしたい条件を選んでください。
+        </p>
+      ) : (
+        <div className="whatif-knobs">
+          {shown.map((k) => (
+            <KnobRow key={k.id} knob={k} scenario={scenario} baseline={baseline} onChange={onChange} />
+          ))}
         </div>
       )}
-
-      <div className="whatif-knobs">
-        {knobs.map((k) => {
-          const value = info[k.key];
-          const before = baseline?.[k.key] ?? value;
-          const diff = value - before;
-          // いまの値が既定の範囲より外なら、その値まで目盛りを広げる
-          const min = Math.min(k.min, value, before);
-          const max = Math.max(k.max, value, before);
-          return (
-            <label className="knob" key={k.key}>
-              <span className="knob-head">
-                <span className="knob-label">{k.label}</span>
-                <span className="knob-value">
-                  {show(value, k.digits)}
-                  {k.unit}
-                  {/* 増減そのものに良し悪しはないので、色は中立にしておく */}
-                  {diff !== 0 && (
-                    <em>
-                      {diff > 0 ? '+' : '−'}
-                      {show(Math.abs(diff), k.digits)}
-                    </em>
-                  )}
-                </span>
-              </span>
-              <input
-                type="range"
-                min={min}
-                max={max}
-                step={k.step}
-                value={value}
-                aria-label={k.label}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  // 0.1 刻みの浮動小数の誤差を落とす
-                  const rounded = Math.round(n / k.step) * k.step;
-                  onChange({ ...info, [k.key]: Number(rounded.toFixed(2)) });
-                }}
-              />
-            </label>
-          );
-        })}
-      </div>
     </div>
   );
 }
