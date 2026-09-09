@@ -134,7 +134,7 @@ export function buildAdvice(
           result.annualLoanPayment,
         )}で、額面年収の25%を超えています。この水準だと教育費のピークと重なったときに苦しくなります。借入を${yen(
           Math.max(0, answers.housing.price - answers.housing.downPayment) * 0.15,
-        )}ほど減らすか、返済期間を延ばして月々を軽くしておくと安全側に寄せられます。`,
+        )}ほど減らすか、完済年齢を後ろにずらして月々を軽くしておくと安全側に寄せられます。`,
       });
     }
     if (downRate < 20) {

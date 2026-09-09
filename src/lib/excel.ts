@@ -333,9 +333,14 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
     fmt: MONEY,
     note: '実家なら家に入れている金額、持ち家ならローン返済額（維持費は下の欄）',
   });
-  I.input('loanRemainingYears', 'ローンの残り返済年数', info.loanRemainingYears ?? 0, {
-    note: '「持ち家」のときに使います（0 なら完済済み）',
+  I.input('loanPayoffAge', 'いまのローンの完済年齢', info.loanPayoffAge ?? 0, {
+    note: '「持ち家」のときに使います（いまの年齢以下なら完済済み）',
   });
+  I.formula(
+    'loanRemainingYears',
+    'ローンの残り返済年数（自動計算）',
+    `MAX(0,${I.ref.loanPayoffAge}-${I.ref.age})`,
+  );
   I.input('homeUpkeepMonthly', '持ち家の維持費（月額）', info.homeUpkeepMonthly ?? 0, {
     fmt: MONEY,
     note: '固定資産税・修繕積立金・管理費・保険。完済後も続きます',
@@ -367,7 +372,15 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
   });
   I.input('downPayment', '頭金', answers.housing.downPayment, { fmt: MONEY });
   I.input('loanRate', '借入金利', answers.housing.loanRate / 100, { fmt: RATE });
-  I.input('loanYears', '返済期間', answers.housing.loanYears, { note: '年' });
+  I.input('payoffAge', 'ローンの完済年齢', answers.housing.payoffAge, {
+    note: '本人が何歳で完済するか。返済期間は購入時の年齢との差になります',
+  });
+  I.formula(
+    'loanYears',
+    '返済期間（自動計算）',
+    `MAX(1,${I.ref.payoffAge}-(${I.ref.age}+${I.ref.buyYear}-${I.ref.startYear}))`,
+    '完済年齢 −（購入時の年齢）。購入する年より前を入れた場合は 1 年として扱います',
+  );
   I.input('feeRate', '購入時の諸費用率', 0.07, { fmt: RATE, note: '仲介手数料・登記・税金など' });
   I.input('upkeepRate', '持ち家の年間維持費率', 0.01, { fmt: RATE, note: '固定資産税・修繕積立・保険' });
   I.input(
@@ -385,7 +398,7 @@ export async function buildLifePlanWorkbook({ info, answers }: WorkbookInput): P
   I.formula(
     'loanMonthly',
     '月返済額（自動計算）',
-    `IF(${I.ref.loanPrincipal}<=0,0,PMT(${I.ref.loanRate}/12,${I.ref.loanYears}*12,-${I.ref.loanPrincipal}))`,
+    `IF(OR(${I.ref.loanPrincipal}<=0,${I.ref.loanYears}<=0),0,PMT(${I.ref.loanRate}/12,${I.ref.loanYears}*12,-${I.ref.loanPrincipal}))`,
     '元利均等返済（PMT 関数）',
     '#,##0.00',
   );

@@ -25,7 +25,8 @@ function loadSaved(): Saved | null {
     const parsed = JSON.parse(raw) as Saved;
     if (!parsed?.info || !parsed?.answers) return null;
     // 保存済みデータは古い版の可能性があるため、保存プランと同じ検査を通す
-    return { info: parseInfo(parsed.info), answers: parseAnswers(parsed.answers) };
+    const info = parseInfo(parsed.info);
+    return { info, answers: parseAnswers(parsed.answers, info) };
   } catch {
     return null;
   }

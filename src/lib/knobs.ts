@@ -88,7 +88,10 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
       '支出',
     ),
     ...(info.homeType === 'owned'
-      ? [infoKnob('homeUpkeepMonthly', '持ち家の維持費（月）', '万円', 0, 10, 0.1, 1, '支出')]
+      ? [
+          infoKnob('homeUpkeepMonthly', '持ち家の維持費（月）', '万円', 0, 10, 0.1, 1, '支出'),
+          infoKnob('loanPayoffAge', 'いまのローンの完済年齢', '歳', 40, 90, 1, 0, '住まい'),
+        ]
       : []),
   ];
 
@@ -194,7 +197,7 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
   // 住宅の購入
   if (answers.housing.planned) {
     const housingKnob = (
-      field: 'price' | 'downPayment' | 'loanRate' | 'loanYears' | 'yearsLater',
+      field: 'price' | 'downPayment' | 'loanRate' | 'payoffAge' | 'yearsLater',
       label: string,
       unit: string,
       min: number,
@@ -217,7 +220,7 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
       housingKnob('price', '住宅の購入価格', '万円', 0, 20000, 100, 0),
       housingKnob('downPayment', '頭金', '万円', 0, 5000, 50, 0),
       housingKnob('loanRate', '借入金利', '%', 0, 5, 0.05, 2),
-      housingKnob('loanYears', '返済期間', '年', 5, 50, 1, 0),
+      housingKnob('payoffAge', 'ローンの完済年齢', '歳', 40, 90, 1, 0),
       housingKnob('yearsLater', '購入する時期', '年後', 0, 40, 1, 0),
     );
   }

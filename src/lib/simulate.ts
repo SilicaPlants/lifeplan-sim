@@ -97,9 +97,13 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
   const loanPrincipal = answers.housing.planned
     ? Math.max(0, answers.housing.price - answers.housing.downPayment) * purchasePriceLevel
     : 0;
+  // 完済年齢で指定するので、返済期間は購入時の年齢との差になる
+  const purchaseAge = info.age + answers.housing.yearsLater;
+  // 購入する年より前の完済年齢を入れられても、借入がなかったことにはしない
+  const housingLoanYears = Math.max(1, answers.housing.payoffAge - purchaseAge);
   const loanPayment = annualLoanPayment(
     loanPrincipal,
-    answers.housing.loanYears,
+    housingLoanYears,
     answers.housing.loanRate,
   );
 
@@ -184,7 +188,7 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
     const owned = answers.housing.planned && t >= answers.housing.yearsLater;
     if (owned) {
       const sincePurchase = t - answers.housing.yearsLater;
-      const paying = sincePurchase < answers.housing.loanYears;
+      const paying = sincePurchase < housingLoanYears;
       housingCost =
         (paying ? loanPayment : 0) + answers.housing.price * HOME_UPKEEP_RATE * priceLevel;
       if (sincePurchase === 0) {
@@ -195,7 +199,7 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
         if (answers.housing.fundedBy === 'investment') investmentFunded += upfront;
         events.push('住宅購入');
       }
-      if (sincePurchase === answers.housing.loanYears) events.push('ローン完済');
+      if (sincePurchase === housingLoanYears) events.push('ローン完済');
     } else {
       // 適用中の引越し先（複数回の引越しのうち、その年までで最後のもの）
       const applied = moves.filter((m) => m.yearsLater <= t);
@@ -204,10 +208,11 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
         // 引越したあとは賃貸
         housingCost = current.monthlyRent * 12 * priceLevel;
       } else if (info.homeType === 'owned') {
-        // すでに持ち家：残りの返済期間だけ返済額がかかり、維持費はその後も続く
-        const paying = t < info.loanRemainingYears;
+        // すでに持ち家：完済の年まで返済額がかかり、維持費はその後も続く
+        const remainingYears = Math.max(0, info.loanPayoffAge - info.age);
+        const paying = t < remainingYears;
         housingCost = (paying ? info.rent : 0) * 12 + info.homeUpkeepMonthly * 12 * priceLevel;
-        if (info.loanRemainingYears > 0 && t === info.loanRemainingYears) {
+        if (remainingYears > 0 && t === remainingYears) {
           events.push('ローン完済');
         }
       } else {
@@ -269,7 +274,7 @@ export function simulate(info: BasicInfo, answers: PlanAnswers): SimulationResul
       if (sincePurchase < answers.housing.creditYears) {
         const balance = loanBalanceAfter(
           loanPrincipal,
-          answers.housing.loanYears,
+          housingLoanYears,
           answers.housing.loanRate,
           sincePurchase,
         );

@@ -270,6 +270,11 @@ export function QuestionCard({
   );
   const loanPrincipalNominal =
     Math.max(0, answers.housing.price - answers.housing.downPayment) * purchasePriceLevel;
+  // 完済年齢で指定するので、返済期間は購入時の年齢との差になる
+  const housingLoanYears = Math.max(
+    1,
+    answers.housing.payoffAge - (info.age + answers.housing.yearsLater),
+  );
   const retirement = answers.retirement ?? defaultAnswers.retirement;
   const eduTotal = educationTotal(eduPath, finalStage, educationCosts, graduateYears);
   const changedEdu = (['public', 'private'] as const).flatMap((kind) =>
@@ -1043,15 +1048,19 @@ export function QuestionCard({
                   )} を計上します`}
                 />
                 <NumberField
-                  label="返済期間"
-                  unit="年"
-                  value={answers.housing.loanYears}
-                  onChange={(v) => patch('housing', { loanYears: v })}
-                  min={1}
-                  max={50}
-                  desc={`完済は ${whenLabel(
-                    answers.housing.yearsLater + answers.housing.loanYears,
-                  )}`}
+                  label="ローンの完済年齢"
+                  unit="歳"
+                  value={answers.housing.payoffAge}
+                  onChange={(v) => patch('housing', { payoffAge: v })}
+                  min={info.age + answers.housing.yearsLater + 1}
+                  max={100}
+                  desc={
+                    answers.housing.payoffAge > info.age + answers.housing.yearsLater
+                      ? `${housingLoanYears}年返済（完済は ${whenLabel(
+                          answers.housing.yearsLater + housingLoanYears,
+                        )}）`
+                      : '購入する年より後の年齢を入れてください'
+                  }
                 />
                 <NumberField
                   label="借入金利"
@@ -1117,7 +1126,7 @@ export function QuestionCard({
                   {yen(
                     annualLoanPayment(
                       loanPrincipalNominal,
-                      answers.housing.loanYears,
+                      housingLoanYears,
                       answers.housing.loanRate,
                     ) / 12,
                   )}

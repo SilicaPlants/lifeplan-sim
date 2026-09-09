@@ -87,7 +87,7 @@ export const defaultBasicInfo: BasicInfo = {
   homeType: 'rent',
   // 民営借家の全国平均は5〜6万円、首都圏は8〜10万円。中間をとる
   rent: 9,
-  loanRemainingYears: 30,
+  loanPayoffAge: 62, // 32歳であと30年
   // マンションの管理費＋修繕積立金＋固定資産税の目安
   homeUpkeepMonthly: 2.5,
   livingCost: 22,
@@ -134,7 +134,7 @@ export const defaultAnswers: PlanAnswers = {
     yearsLater: 5,
     price: 4500,
     downPayment: 500,
-    loanYears: 35,
+    payoffAge: 72, // 37歳（5年後）に買って35年返済
     // 変動金利は0.7〜1.0%、フラット35は2%前後。将来の金利上昇も見込んで中間をとる
     loanRate: 1.5,
     fundedBy: 'cash',

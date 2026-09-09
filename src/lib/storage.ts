@@ -56,7 +56,11 @@ export function parseInfo(raw: unknown): BasicInfo {
         ? o.homeType
         : d.homeType,
     rent: num(o.rent, d.rent),
-    loanRemainingYears: num(o.loanRemainingYears, d.loanRemainingYears),
+    // 旧形式は「残り返済年数」だったので、いまの年齢を足して完済年齢にする
+    loanPayoffAge:
+      o.loanPayoffAge === undefined && o.loanRemainingYears !== undefined
+        ? num(o.age, d.age) + num(o.loanRemainingYears, 0)
+        : num(o.loanPayoffAge, d.loanPayoffAge),
     homeUpkeepMonthly: num(o.homeUpkeepMonthly, d.homeUpkeepMonthly),
     livingCost: num(o.livingCost, d.livingCost),
     cash: num(o.cash, d.cash),
@@ -74,7 +78,8 @@ export function parseInfo(raw: unknown): BasicInfo {
   };
 }
 
-export function parseAnswers(raw: unknown): PlanAnswers {
+/** info は旧形式（返済期間）を完済年齢に読み替えるときだけ使う */
+export function parseAnswers(raw: unknown, info?: BasicInfo): PlanAnswers {
   const o = (raw ?? {}) as Record<string, unknown>;
   const d = defaultAnswers;
   const children = (o.children ?? {}) as Record<string, unknown>;
@@ -244,7 +249,13 @@ export function parseAnswers(raw: unknown): PlanAnswers {
       yearsLater: num(housing.yearsLater, d.housing.yearsLater),
       price: num(housing.price, d.housing.price),
       downPayment: num(housing.downPayment, d.housing.downPayment),
-      loanYears: num(housing.loanYears, d.housing.loanYears),
+      // 旧形式は「返済期間」だったので、購入時の年齢を足して完済年齢にする
+      payoffAge:
+        housing.payoffAge === undefined && housing.loanYears !== undefined
+          ? (info?.age ?? defaultBasicInfo.age) +
+            num(housing.yearsLater, d.housing.yearsLater) +
+            num(housing.loanYears, 0)
+          : num(housing.payoffAge, d.housing.payoffAge),
       loanRate: num(housing.loanRate, d.housing.loanRate),
       fundedBy: housing.fundedBy === 'investment' ? ('investment' as const) : ('cash' as const),
       taxCredit: bool(housing.taxCredit, d.housing.taxCredit),
@@ -288,7 +299,7 @@ function parsePlan(raw: unknown): SavedPlan | null {
     createdAt: str(o.createdAt, now, 40),
     updatedAt: str(o.updatedAt, now, 40),
     info: parseInfo(o.info),
-    answers: parseAnswers(o.answers),
+    answers: parseAnswers(o.answers, parseInfo(o.info)),
   };
 }
 
@@ -423,7 +434,7 @@ export function diffPlan(
   push('現在のお子さん', `${a.children.length}人`, `${b.children.length}人`);
   push('住まい', HOME_TYPE_LABEL[a.homeType], HOME_TYPE_LABEL[b.homeType]);
   push('住居費', `月${a.rent}万円`, `月${b.rent}万円`);
-  push('ローンの残り年数', `${a.loanRemainingYears}年`, `${b.loanRemainingYears}年`);
+  push('ローンの完済年齢', `${a.loanPayoffAge}歳`, `${b.loanPayoffAge}歳`);
   push('持ち家の維持費', `月${a.homeUpkeepMonthly}万円`, `月${b.homeUpkeepMonthly}万円`);
   push('大人の生活費', `月${a.livingCost}万円`, `月${b.livingCost}万円`);
   push('現金・預金', man(a.cash), man(b.cash));
@@ -476,7 +487,7 @@ export function diffPlan(
     push('購入時期', `${x.housing.yearsLater}年後`, `${y.housing.yearsLater}年後`);
     push('物件価格', man(x.housing.price), man(y.housing.price));
     push('頭金', man(x.housing.downPayment), man(y.housing.downPayment));
-    push('返済期間', `${x.housing.loanYears}年`, `${y.housing.loanYears}年`);
+    push('ローンの完済年齢', `${x.housing.payoffAge}歳`, `${y.housing.payoffAge}歳`);
     push('借入金利', pct(x.housing.loanRate), pct(y.housing.loanRate));
     push('住宅ローン控除', x.housing.taxCredit ? '使う' : '使わない', y.housing.taxCredit ? '使う' : '使わない');
   }

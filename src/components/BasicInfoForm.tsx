@@ -163,17 +163,17 @@ export function BasicInfoForm({ value, onChange, onNext }: Props) {
           {value.homeType === 'owned' && (
             <>
               <NumberField
-                label="ローンの残り返済年数"
-                unit="年"
-                value={value.loanRemainingYears}
-                onChange={(v) => set('loanRemainingYears', v)}
+                label="ローンの完済年齢"
+                unit="歳"
+                value={value.loanPayoffAge}
+                onChange={(v) => set('loanPayoffAge', v)}
                 min={0}
-                max={50}
+                max={100}
                 desc={
-                  value.loanRemainingYears > 0
-                    ? `${value.age + value.loanRemainingYears}歳（${
-                        new Date().getFullYear() + value.loanRemainingYears
-                      }年）に完済。以降は維持費だけになります`
+                  value.loanPayoffAge > value.age
+                    ? `あと${value.loanPayoffAge - value.age}年（${
+                        new Date().getFullYear() + (value.loanPayoffAge - value.age)
+                      }年）で完済。以降は維持費だけになります`
                     : '完済済み。維持費だけがかかります'
                 }
               />

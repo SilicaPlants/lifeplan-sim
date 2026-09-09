@@ -33,8 +33,8 @@ export interface BasicInfo {
   homeType: 'family' | 'rent' | 'owned';
   /** 月あたりの住居費（賃貸なら家賃、実家なら家に入れている金額、持ち家ならローン返済額） */
   rent: number;
-  /** すでに持ち家の場合の、住宅ローンの残り返済年数（0 なら完済済み） */
-  loanRemainingYears: number;
+  /** すでに持ち家の場合の、住宅ローンを完済する年齢（いまの年齢以下なら完済済み） */
+  loanPayoffAge: number;
   /** 持ち家の維持費（固定資産税・修繕積立・保険）の月額。完済後も続く */
   homeUpkeepMonthly: number;
   /** 大人（本人・配偶者）の月あたりの生活費。住居費・教育費・子どもの養育費を除く */
@@ -145,8 +145,8 @@ export interface HousingAnswer {
   price: number;
   /** 頭金 */
   downPayment: number;
-  /** 返済期間（年） */
-  loanYears: number;
+  /** ローンを完済する年齢（本人の年齢）。返済期間は購入時の年齢との差から決まる */
+  payoffAge: number;
   /** 借入金利（％/年） */
   loanRate: number;
   /** 頭金・諸費用をどこから払うか */
