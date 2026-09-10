@@ -98,10 +98,10 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
   // 収入の変化（転職・育休・復職など）
   answers.incomeEvents.forEach((e) => {
     const who = PERSON[e.person] ?? '';
-    const name = e.label || '収入の変化';
     knobs.push({
       id: `income.${e.id}.amount`,
-      label: `${name}後の${who}の年収`,
+      // 「育休後の配偶者の年収」。名前を付けていなければ「配偶者の年収（3年後から）」
+      label: e.label ? `${e.label}後の${who}の年収` : `${who}の年収（${e.yearsLater}年後から）`,
       unit: '万円',
       group: '収入の変化',
       min: 0,
@@ -116,7 +116,7 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
     });
     knobs.push({
       id: `income.${e.id}.when`,
-      label: `${name}の時期（${who}）`,
+      label: e.label ? `${e.label}の時期（${who}）` : `${who}の収入が変わる時期`,
       unit: '年後',
       group: '収入の変化',
       min: 0,
@@ -133,10 +133,9 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
 
   // 毎月の積立額の変更
   answers.investmentChanges.forEach((c) => {
-    const name = c.label || '積立額の変更';
     knobs.push({
       id: `invest.${c.id}.amount`,
-      label: `${name}後の積立額（月）`,
+      label: c.label ? `${c.label}後の積立額（月）` : `積立額（月・${c.yearsLater}年後から）`,
       unit: '万円',
       group: '運用',
       min: 0,
@@ -156,10 +155,9 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
 
   // 大型出費
   answers.bigExpenses.forEach((b) => {
-    const name = b.label || '大型出費';
     knobs.push({
       id: `big.${b.id}.amount`,
-      label: `${name}の金額`,
+      label: b.label ? `${b.label}の金額` : `大型出費の金額（${b.yearsLater}年後）`,
       unit: '万円',
       group: '大型出費',
       min: 0,
@@ -176,10 +174,9 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
 
   // 引越し
   answers.moves.forEach((m) => {
-    const name = m.label || '引越し';
     knobs.push({
       id: `move.${m.id}.rent`,
-      label: `${name}後の家賃（月）`,
+      label: m.label ? `${m.label}後の家賃（月）` : `家賃（月・${m.yearsLater}年後から）`,
       unit: '万円',
       group: '住まい',
       min: 0,
@@ -259,7 +256,31 @@ export function buildKnobs({ info, answers }: Scenario): Knob[] {
     },
   );
 
-  return knobs;
+  return disambiguate(knobs, answers);
+}
+
+/** 同じラベルが 2 つ以上あるときだけ「（◯年後）」を足して見分けられるようにする */
+function disambiguate(knobs: Knob[], answers: PlanAnswers): Knob[] {
+  const count = new Map<string, number>();
+  knobs.forEach((k) => count.set(k.label, (count.get(k.label) ?? 0) + 1));
+  if ([...count.values()].every((n) => n === 1)) return knobs;
+
+  const yearsOf = (id: string): number | null => {
+    const [kind, key] = id.split('.');
+    const find = <T extends { id: string; yearsLater: number }>(list: T[]) =>
+      list.find((x) => x.id === key)?.yearsLater ?? null;
+    if (kind === 'income') return find(answers.incomeEvents);
+    if (kind === 'invest') return find(answers.investmentChanges);
+    if (kind === 'big') return find(answers.bigExpenses);
+    if (kind === 'move') return find(answers.moves);
+    return null;
+  };
+
+  return knobs.map((k) => {
+    if ((count.get(k.label) ?? 0) < 2) return k;
+    const years = yearsOf(k.id);
+    return years === null ? k : { ...k, label: `${k.label}（${years}年後）` };
+  });
 }
 
 /** 最初から出しておくつまみ */

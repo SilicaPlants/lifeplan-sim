@@ -1990,6 +1990,7 @@ td.is-negative {
   margin-top: 10px;
 }
 
+/* 見出しを貼り付けにすると、スクロールした項目が下からはみ出して重なる */
 .picker-group-name {
   font-size: 11px;
   font-weight: 700;
@@ -1997,8 +1998,6 @@ td.is-negative {
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
-  position: sticky;
-  top: 0;
   background: var(--surface-1);
 }
 
